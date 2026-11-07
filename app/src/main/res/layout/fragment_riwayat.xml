@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- RecyclerView memakai 2 view type: item_header_tanggal dan item_riwayat -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    tools:context=".ui.RiwayatFragment">
+
+    <TextView
+        style="@style/SiagaTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="20dp"
+        android:paddingTop="16dp"
+        android:paddingEnd="20dp"
+        android:text="Riwayat" />
+
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:clipToPadding="false"
+        android:paddingStart="20dp"
+        android:paddingEnd="20dp"
+        android:scrollbars="none">
+
+        <com.google.android.material.chip.ChipGroup
+            android:id="@+id/chipGroupAksi"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:chipSpacingHorizontal="8dp"
+            app:selectionRequired="true"
+            app:singleLine="true"
+            app:singleSelection="true">
+
+            <com.google.android.material.chip.Chip android:id="@+id/chipSemua" style="@style/Widget.Siaga.Chip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:checked="true" android:text="Semua" />
+            <com.google.android.material.chip.Chip android:id="@+id/chipDibuat" style="@style/Widget.Siaga.Chip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Dibuat" />
+            <com.google.android.material.chip.Chip android:id="@+id/chipDiubah" style="@style/Widget.Siaga.Chip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Diubah" />
+            <com.google.android.material.chip.Chip android:id="@+id/chipDihapus" style="@style/Widget.Siaga.Chip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Dihapus" />
+        </com.google.android.material.chip.ChipGroup>
+    </HorizontalScrollView>
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+            android:id="@+id/swipeRefresh"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rvRiwayat"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:clipToPadding="false"
+                android:paddingBottom="24dp"
+                tools:listitem="@layout/item_riwayat" />
+        </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+
+        <include
+            android:id="@+id/stateLoading"
+            layout="@layout/layout_state_loading"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone" />
+
+        <include
+            android:id="@+id/stateEmpty"
+            layout="@layout/layout_state_empty"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone" />
+
+        <include
+            android:id="@+id/stateError"
+            layout="@layout/layout_state_error"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone" />
+    </FrameLayout>
+</LinearLayout>

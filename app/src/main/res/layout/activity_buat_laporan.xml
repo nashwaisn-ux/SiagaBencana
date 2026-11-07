@@ -1,0 +1,274 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/siaga_bg"
+    android:orientation="vertical"
+    tools:context=".BuatLaporanActivity">
+
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="@color/white"
+        android:elevation="1dp"
+        app:navigationContentDescription="Kembali"
+        app:navigationIcon="@drawable/ic_back"
+        app:title="Buat Laporan"
+        app:titleTextColor="@color/siaga_text" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="20dp">
+
+            <!-- Validasi: tilJudul.error = "Judul wajib diisi, minimal 5 karakter." -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/tilJudul"
+                style="@style/Widget.Siaga.Input"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Judul kejadian"
+                app:counterEnabled="true"
+                app:counterMaxLength="80">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etJudul"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="textCapSentences"
+                    android:maxLength="80"
+                    android:maxLines="1" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <TextView
+                style="@style/SiagaLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="Jenis bencana" />
+
+            <com.google.android.material.chip.ChipGroup
+                android:id="@+id/chipGroupJenis"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                app:chipSpacingHorizontal="8dp"
+                app:selectionRequired="true"
+                app:singleSelection="true">
+
+                <com.google.android.material.chip.Chip android:id="@+id/chipJenisBanjir" style="@style/Widget.Siaga.Chip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:checked="true" android:text="Banjir" />
+                <com.google.android.material.chip.Chip android:id="@+id/chipJenisKebakaran" style="@style/Widget.Siaga.Chip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Kebakaran" />
+                <com.google.android.material.chip.Chip android:id="@+id/chipJenisLongsor" style="@style/Widget.Siaga.Chip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Longsor" />
+                <com.google.android.material.chip.Chip android:id="@+id/chipJenisLainnya" style="@style/Widget.Siaga.Chip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Lainnya" />
+            </com.google.android.material.chip.ChipGroup>
+
+            <TextView
+                style="@style/SiagaLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="Tingkat urgensi" />
+
+            <com.google.android.material.button.MaterialButtonToggleGroup
+                android:id="@+id/toggleUrgensi"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                app:checkedButton="@id/btnRendah"
+                app:selectionRequired="true"
+                app:singleSelection="true">
+
+                <com.google.android.material.button.MaterialButton android:id="@+id/btnRendah" style="@style/Widget.Siaga.Button.Toggle" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Rendah" />
+                <com.google.android.material.button.MaterialButton android:id="@+id/btnSedang" style="@style/Widget.Siaga.Button.Toggle" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Sedang" />
+                <com.google.android.material.button.MaterialButton android:id="@+id/btnTinggi" style="@style/Widget.Siaga.Button.Toggle" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Tinggi" />
+                <com.google.android.material.button.MaterialButton android:id="@+id/btnKritis" style="@style/Widget.Siaga.Button.Toggle" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Kritis" />
+            </com.google.android.material.button.MaterialButtonToggleGroup>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/tilDeskripsi"
+                style="@style/Widget.Siaga.Input"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:hint="Deskripsi">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etDeskripsi"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="top"
+                    android:inputType="textMultiLine|textCapSentences"
+                    android:minLines="3" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <TextView
+                style="@style/SiagaLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="Titik lokasi" />
+
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardLokasi"
+                style="@style/Widget.Siaga.Card"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                app:cardCornerRadius="14dp"
+                app:cardElevation="0dp"
+                app:strokeColor="@color/siaga_outline"
+                app:strokeWidth="1.5dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:minHeight="52dp"
+                    android:orientation="horizontal"
+                    android:padding="14dp">
+
+                    <ImageView
+                        android:layout_width="22dp"
+                        android:layout_height="22dp"
+                        android:importantForAccessibility="no"
+                        android:src="@drawable/ic_location"
+                        app:tint="@color/siaga_red" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="10dp"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/tvKoordinat"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="-0.5071, 101.4478"
+                            android:textColor="@color/siaga_text"
+                            android:textSize="13sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/tvStatusLokasi"
+                            style="@style/SiagaCaption"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Lokasi GPS terdeteksi" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/tvUbahLokasi"
+                        android:layout_width="wrap_content"
+                        android:layout_height="44dp"
+                        android:gravity="center_vertical"
+                        android:text="Ubah"
+                        android:textColor="@color/siaga_red"
+                        android:textSize="12sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <TextView
+                style="@style/SiagaLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="Foto bukti (maks. 3)" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="-6dp"
+                android:orientation="horizontal">
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rvFoto"
+                    android:layout_width="wrap_content"
+                    android:layout_height="96dp"
+                    android:orientation="horizontal"
+                    app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+                    tools:itemCount="2"
+                    tools:listitem="@layout/item_foto_bukti" />
+
+                <LinearLayout
+                    android:id="@+id/btnTambahFoto"
+                    android:layout_width="84dp"
+                    android:layout_height="84dp"
+                    android:layout_gravity="center_vertical"
+                    android:layout_marginStart="6dp"
+                    android:background="@drawable/bg_dashed_add"
+                    android:clickable="true"
+                    android:contentDescription="Tambah foto bukti"
+                    android:focusable="true"
+                    android:foreground="?attr/selectableItemBackground"
+                    android:gravity="center"
+                    android:orientation="vertical">
+
+                    <ImageView
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:importantForAccessibility="no"
+                        android:src="@drawable/ic_camera"
+                        app:tint="@color/siaga_text_secondary" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="Tambah"
+                        android:textColor="@color/siaga_text_secondary"
+                        android:textSize="11sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/tvErrorFoto"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="Tambahkan minimal 1 foto bukti."
+                android:textColor="@color/siaga_error"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:visibility="gone" />
+        </LinearLayout>
+    </ScrollView>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/white"
+        android:elevation="8dp"
+        android:orientation="vertical"
+        android:padding="20dp">
+
+        <com.google.android.material.progressindicator.LinearProgressIndicator
+            android:id="@+id/progressKirim"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:indeterminate="true"
+            android:visibility="gone"
+            app:indicatorColor="@color/siaga_red" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnKirim"
+            style="@style/Widget.Siaga.Button"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Kirim laporan" />
+    </LinearLayout>
+</LinearLayout>

@@ -1,0 +1,7 @@
+<resources>
+    <dimen name="screen_padding">20dp</dimen>
+    <dimen name="radius_card">18dp</dimen>
+    <dimen name="radius_button">16dp</dimen>
+    <dimen name="button_height">54dp</dimen>
+    <dimen name="touch_min">44dp</dimen>
+</resources>

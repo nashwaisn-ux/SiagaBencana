@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Riak splash 1. Untuk ring ke-2 dan ke-3 set startOffset 1000 dan 2000 di Kotlin. -->
+<set xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shareInterpolator="false">
+    <scale
+        android:duration="3000"
+        android:fromXScale="0.3"
+        android:fromYScale="0.3"
+        android:toXScale="1.5"
+        android:toYScale="1.5"
+        android:pivotX="50%"
+        android:pivotY="50%"
+        android:repeatCount="infinite"
+        android:interpolator="@android:anim/decelerate_interpolator" />
+    <alpha
+        android:duration="3000"
+        android:fromAlpha="0.7"
+        android:toAlpha="0"
+        android:repeatCount="infinite" />
+</set>

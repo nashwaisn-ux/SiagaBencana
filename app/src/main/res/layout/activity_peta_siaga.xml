@@ -1,0 +1,223 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- FITUR UNGGULAN: Peta Siaga + SOS.
+     Ganti FrameLayout mapContainer dengan fragment peta (Google Maps SupportMapFragment atau osmdroid MapView).
+     SOS: pada btnSos pakai setOnTouchListener, isi progressSos 0-100 selama 3 detik; jika lepas sebelum penuh, reset. -->
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".PetaSiagaActivity">
+
+    <FrameLayout
+        android:id="@+id/mapContainer"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/siaga_map_bg" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top"
+        android:orientation="vertical"
+        android:paddingStart="16dp"
+        android:paddingTop="12dp"
+        android:paddingEnd="16dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageButton
+                android:id="@+id/btnBack"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="@drawable/bg_icon_btn_white"
+                android:contentDescription="Kembali"
+                android:elevation="4dp"
+                android:src="@drawable/ic_back"
+                app:tint="@color/siaga_text" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_marginStart="10dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_icon_btn_white"
+                android:elevation="4dp"
+                android:gravity="center_vertical"
+                android:paddingStart="16dp"
+                android:text="Peta Siaga Bencana"
+                android:textColor="@color/siaga_text"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <HorizontalScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:scrollbars="none">
+
+            <com.google.android.material.chip.ChipGroup
+                android:id="@+id/chipGroupJenis"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                app:chipSpacingHorizontal="8dp"
+                app:selectionRequired="true"
+                app:singleLine="true"
+                app:singleSelection="true">
+
+                <com.google.android.material.chip.Chip android:id="@+id/chipSemua" style="@style/Widget.Siaga.Chip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:checked="true" android:text="Semua" />
+                <com.google.android.material.chip.Chip android:id="@+id/chipBanjir" style="@style/Widget.Siaga.Chip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Banjir" />
+                <com.google.android.material.chip.Chip android:id="@+id/chipKebakaran" style="@style/Widget.Siaga.Chip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Kebakaran" />
+                <com.google.android.material.chip.Chip android:id="@+id/chipLongsor" style="@style/Widget.Siaga.Chip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Longsor" />
+            </com.google.android.material.chip.ChipGroup>
+        </HorizontalScrollView>
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/bottomSheet"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_sheet_top"
+        android:clickable="true"
+        android:elevation="8dp"
+        android:focusable="true"
+        android:orientation="vertical"
+        android:paddingStart="20dp"
+        android:paddingTop="12dp"
+        android:paddingEnd="20dp"
+        android:paddingBottom="20dp"
+        app:behavior_hideable="false"
+        app:behavior_peekHeight="318dp"
+        app:layout_behavior="com.google.android.material.bottomsheet.BottomSheetBehavior">
+
+        <View
+            android:layout_width="40dp"
+            android:layout_height="4dp"
+            android:layout_gravity="center_horizontal"
+            android:background="@drawable/bg_handle" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                style="@style/SiagaSection"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Radius siaga" />
+
+            <TextView
+                android:id="@+id/tvRingkasan"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="2 kritis · 1 tinggi · 1 rendah"
+                android:textColor="@color/siaga_red"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <com.google.android.material.chip.ChipGroup
+            android:id="@+id/chipGroupRadius"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            app:chipSpacingHorizontal="8dp"
+            app:selectionRequired="true"
+            app:singleSelection="true">
+
+            <com.google.android.material.chip.Chip android:id="@+id/chip1km" style="@style/Widget.Siaga.Chip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="1 km" />
+            <com.google.android.material.chip.Chip android:id="@+id/chip3km" style="@style/Widget.Siaga.Chip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:checked="true" android:text="3 km" />
+            <com.google.android.material.chip.Chip android:id="@+id/chip5km" style="@style/Widget.Siaga.Chip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="5 km" />
+            <com.google.android.material.chip.Chip android:id="@+id/chip10km" style="@style/Widget.Siaga.Chip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="10 km" />
+        </com.google.android.material.chip.ChipGroup>
+
+        <LinearLayout
+            android:id="@+id/cardTerdekat"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:background="@drawable/bg_info_gray"
+            android:clickable="true"
+            android:focusable="true"
+            android:foreground="?attr/selectableItemBackground"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:padding="12dp">
+
+            <View
+                android:layout_width="10dp"
+                android:layout_height="10dp"
+                android:background="@drawable/bg_circle_red" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/tvTerdekatJudul"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Banjir meluap di permukiman"
+                    android:textColor="@color/siaga_text"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tvTerdekatJarak"
+                    style="@style/SiagaCaption"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="850 m dari Anda · 20 menit lalu" />
+            </LinearLayout>
+
+            <ImageView
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:importantForAccessibility="no"
+                android:src="@drawable/ic_chevron_right"
+                app:tint="@color/siaga_text_secondary" />
+        </LinearLayout>
+
+        <com.google.android.material.progressindicator.LinearProgressIndicator
+            android:id="@+id/progressSos"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:max="100"
+            android:progress="0"
+            app:indicatorColor="@color/siaga_red"
+            app:trackColor="@color/siaga_progress_track"
+            app:trackCornerRadius="3dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnSos"
+            style="@style/Widget.Siaga.Button"
+            android:layout_width="match_parent"
+            android:layout_height="60dp"
+            android:layout_marginTop="6dp"
+            android:text="Tahan 3 detik untuk SOS"
+            app:cornerRadius="18dp"
+            app:icon="@drawable/ic_warning"
+            app:iconGravity="textStart" />
+
+        <TextView
+            style="@style/SiagaCaption"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:gravity="center"
+            android:text="Lokasi terkirim otomatis ke relawan dan petugas terdekat." />
+    </LinearLayout>
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

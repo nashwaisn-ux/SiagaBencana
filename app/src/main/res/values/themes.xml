@@ -1,0 +1,25 @@
+<resources>
+    <!-- Warna aplikasi bersifat tetap (terang). Paksa mode terang di Application:
+         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO) -->
+    <style name="Theme.Siagabencana" parent="Theme.Material3.Light.NoActionBar">
+        <item name="colorPrimary">@color/siaga_red</item>
+        <item name="colorOnPrimary">@color/white</item>
+        <item name="colorPrimaryContainer">@color/siaga_red_soft</item>
+        <item name="colorOnPrimaryContainer">@color/siaga_red</item>
+        <item name="colorSecondary">@color/siaga_navy</item>
+        <item name="colorOnSecondary">@color/white</item>
+        <item name="colorSurface">@color/white</item>
+        <item name="colorError">@color/siaga_error</item>
+        <item name="android:windowBackground">@color/siaga_bg</item>
+        <item name="android:statusBarColor">@color/siaga_navy</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="materialButtonStyle">@style/Widget.Siaga.Button</item>
+        <item name="bottomNavigationStyle">@style/Widget.Siaga.BottomNav</item>
+    </style>
+
+    <!-- Untuk SplashActivity 1 dan 2 -->
+    <style name="Theme.Siagabencana.Splash" parent="Theme.Siagabencana">
+        <item name="android:windowBackground">@color/siaga_navy</item>
+        <item name="android:navigationBarColor">@color/siaga_navy</item>
+    </style>
+</resources>

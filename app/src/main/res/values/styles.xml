@@ -1,0 +1,143 @@
+<resources>
+    <!-- Teks -->
+    <style name="SiagaTitle">
+        <item name="android:textSize">24sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/siaga_text</item>
+    </style>
+    <style name="SiagaSection">
+        <item name="android:textSize">16sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/siaga_text</item>
+    </style>
+    <style name="SiagaBody">
+        <item name="android:textSize">14sp</item>
+        <item name="android:lineSpacingExtra">3dp</item>
+        <item name="android:textColor">@color/siaga_text_secondary</item>
+    </style>
+    <style name="SiagaCaption">
+        <item name="android:textSize">12sp</item>
+        <item name="android:textColor">@color/siaga_text_secondary</item>
+    </style>
+    <style name="SiagaLabel">
+        <item name="android:textSize">13sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/siaga_text_secondary</item>
+    </style>
+    <style name="SiagaBadge">
+        <item name="android:textSize">11sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:paddingStart">10dp</item>
+        <item name="android:paddingEnd">10dp</item>
+        <item name="android:paddingTop">4dp</item>
+        <item name="android:paddingBottom">4dp</item>
+    </style>
+
+    <!-- Tombol -->
+    <style name="Widget.Siaga.Button" parent="Widget.Material3.Button">
+        <item name="android:minHeight">54dp</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="cornerRadius">16dp</item>
+        <item name="backgroundTint">@color/siaga_red</item>
+    </style>
+    <style name="Widget.Siaga.Button.Outline" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="android:minHeight">54dp</item>
+        <item name="android:textSize">15sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="android:textColor">@color/siaga_navy</item>
+        <item name="cornerRadius">16dp</item>
+        <item name="strokeColor">@color/siaga_navy</item>
+        <item name="strokeWidth">2dp</item>
+    </style>
+    <style name="Widget.Siaga.Button.Outline.Red" parent="Widget.Siaga.Button.Outline">
+        <item name="android:textColor">@color/siaga_red</item>
+        <item name="strokeColor">@color/siaga_red</item>
+        <item name="iconTint">@color/siaga_red</item>
+    </style>
+    <!-- Pilihan role di Login (ikon di atas teks) -->
+    <style name="Widget.Siaga.Button.Role" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="android:minHeight">76dp</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="android:textColor">@color/role_text</item>
+        <item name="backgroundTint">@color/role_bg</item>
+        <item name="strokeColor">@color/role_stroke</item>
+        <item name="strokeWidth">2dp</item>
+        <item name="cornerRadius">16dp</item>
+        <item name="iconGravity">textTop</item>
+        <item name="iconTint">@color/role_text</item>
+        <item name="iconSize">24dp</item>
+    </style>
+    <!-- Segmen urgensi -->
+    <style name="Widget.Siaga.Button.Toggle" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="android:minHeight">48dp</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="android:textColor">@color/role_text</item>
+        <item name="backgroundTint">@color/role_bg</item>
+        <item name="strokeColor">@color/role_stroke</item>
+        <item name="strokeWidth">2dp</item>
+    </style>
+
+    <!-- Chip filter -->
+    <style name="Widget.Siaga.Chip" parent="Widget.Material3.Chip.Filter">
+        <item name="chipBackgroundColor">@color/chip_bg_color</item>
+        <item name="chipStrokeColor">@color/chip_stroke_color</item>
+        <item name="chipStrokeWidth">1.5dp</item>
+        <item name="android:textColor">@color/chip_text_color</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="checkedIconVisible">false</item>
+        <item name="chipCornerRadius">999dp</item>
+        <item name="android:minHeight">44dp</item>
+    </style>
+
+    <!-- Input -->
+    <style name="Widget.Siaga.Input" parent="Widget.Material3.TextInputLayout.OutlinedBox">
+        <item name="boxCornerRadiusTopStart">14dp</item>
+        <item name="boxCornerRadiusTopEnd">14dp</item>
+        <item name="boxCornerRadiusBottomStart">14dp</item>
+        <item name="boxCornerRadiusBottomEnd">14dp</item>
+        <item name="boxBackgroundColor">@color/white</item>
+        <item name="boxStrokeColor">@color/input_stroke_color</item>
+        <item name="hintTextColor">@color/siaga_red</item>
+    </style>
+
+    <!-- Kartu -->
+    <style name="Widget.Siaga.Card" parent="Widget.Material3.CardView.Elevated">
+        <item name="cardBackgroundColor">@color/white</item>
+        <item name="cardCornerRadius">18dp</item>
+        <item name="cardElevation">1dp</item>
+    </style>
+
+    <!-- Bottom navigation -->
+    <style name="Widget.Siaga.BottomNav" parent="Widget.Material3.BottomNavigationView">
+        <item name="backgroundTint">@color/white</item>
+        <item name="itemIconTint">@color/nav_item_color</item>
+        <item name="itemTextColor">@color/nav_item_color</item>
+        <item name="labelVisibilityMode">labeled</item>
+        <item name="itemActiveIndicatorStyle">@style/Widget.Siaga.NavIndicator</item>
+    </style>
+    <style name="Widget.Siaga.NavIndicator" parent="Widget.Material3.BottomNavigationView.ActiveIndicator">
+        <item name="android:color">@color/transparent</item>
+    </style>
+
+    <!-- Gambar bersudut -->
+    <style name="SiagaRoundedImage" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">12dp</item>
+    </style>
+</resources>

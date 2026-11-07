@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="siaga_red">#C62D1B</color>
+    <color name="siaga_red_soft">#FDECEA</color>
+    <color name="siaga_red_stroke">#F2B8AE</color>
+    <color name="siaga_navy">#0F1B2D</color>
+    <color name="siaga_navy_light">#1E3250</color>
+    <color name="siaga_bg">#F4F6F9</color>
+    <color name="siaga_line">#E3E7ED</color>
+    <color name="siaga_outline">#D5DBE4</color>
+    <color name="siaga_text">#0F1B2D</color>
+    <color name="siaga_text_secondary">#5B6778</color>
+    <color name="siaga_text_tertiary">#AAB4C3</color>
+    <color name="siaga_on_navy_muted">#B6C2D4</color>
+    <color name="siaga_skeleton">#E3E8EF</color>
+    <color name="siaga_thumb">#DCE3EC</color>
+    <color name="siaga_map_bg">#E6ECF2</color>
+    <color name="siaga_progress_track">#F6CFC9</color>
+    <color name="siaga_error">#B3261E</color>
+    <color name="siaga_green">#166534</color>
+    <color name="siaga_orange">#B45309</color>
+    <color name="siaga_blue">#1D4ED8</color>
+    <color name="badge_critical_bg">#FBD5D0</color>
+    <color name="badge_critical_text">#8E1F12</color>
+    <color name="badge_high_bg">#FDE8C8</color>
+    <color name="badge_high_text">#8A4A06</color>
+    <color name="badge_medium_bg">#FEF3C7</color>
+    <color name="badge_medium_text">#7A4A06</color>
+    <color name="badge_low_bg">#E0E9FF</color>
+    <color name="badge_low_text">#1D3FA8</color>
+    <color name="badge_done_bg">#DCF3E3</color>
+    <color name="badge_done_text">#14532D</color>
+    <color name="white">#FFFFFF</color>
+    <color name="transparent">#00000000</color>
+</resources>
