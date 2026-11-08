@@ -1,0 +1,26 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+class RiwayatStatus extends Model
+{
+    protected $table = 'riwayat_status';
+
+    // Tabel ini hanya punya created_at
+    const UPDATED_AT = null;
+
+    protected $fillable = ['laporan_id', 'user_id', 'status_lama', 'status_baru', 'keterangan'];
+
+    public function laporan(): BelongsTo
+    {
+        return $this->belongsTo(Laporan::class, 'laporan_id');
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
+}
