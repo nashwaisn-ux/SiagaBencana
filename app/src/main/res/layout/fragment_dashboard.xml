@@ -19,7 +19,7 @@
             android:background="@drawable/bg_header_navy"
             android:orientation="horizontal"
             android:paddingStart="20dp"
-            android:paddingTop="24dp"
+            android:paddingTop="60dp"
             android:paddingEnd="20dp">
 
             <LinearLayout

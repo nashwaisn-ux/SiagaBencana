@@ -19,7 +19,7 @@
             android:background="@drawable/bg_header_navy"
             android:gravity="center_horizontal"
             android:orientation="vertical"
-            android:paddingTop="32dp"
+            android:paddingTop="62dp"
             android:paddingBottom="32dp">
 
             <TextView
