@@ -6,7 +6,6 @@ import android.graphics.Color
 import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.view.MotionEvent
-import android.view.View
 import android.widget.ImageButton
 import android.widget.TextView
 import android.widget.Toast
@@ -23,7 +22,7 @@ import kotlinx.coroutines.launch
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.osmdroid.config.Configuration
-import org.osmdroid.tileprovider.tilesource.TileSourceFactory
+import org.osmdroid.tileprovider.tilesource.XYTileSource
 import org.osmdroid.util.BoundingBox
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
@@ -34,7 +33,7 @@ import java.io.IOException
 
 class PetaSiagaActivity : AppCompatActivity() {
 
-    private lateinit var map: MapView
+    private lateinit var mapView: MapView
     private lateinit var progressSos: LinearProgressIndicator
     private lateinit var btnSos: MaterialButton
     private lateinit var tvRingkasan: TextView
@@ -49,7 +48,7 @@ class PetaSiagaActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // 1. Konfigurasi osmdroid sebelum setContentView (Aturan Wajib OpenStreetMap User-Agent & Cache internal)
+        // Konfigurasi osmdroid
         Configuration.getInstance().apply {
             load(applicationContext, getSharedPreferences("osmdroid", MODE_PRIVATE))
             userAgentValue = "SiagaBencana/1.0 (kontak: dev@siagabencana.app)"
@@ -59,7 +58,7 @@ class PetaSiagaActivity : AppCompatActivity() {
 
         setContentView(R.layout.activity_peta_siaga)
 
-        map = findViewById(R.id.map)
+        mapView = findViewById(R.id.mapView)
         progressSos = findViewById(R.id.progressSos)
         btnSos = findViewById(R.id.btnSos)
         tvRingkasan = findViewById(R.id.tvRingkasan)
@@ -69,12 +68,18 @@ class PetaSiagaActivity : AppCompatActivity() {
 
         findViewById<ImageButton>(R.id.btnBack)?.setOnClickListener { finish() }
 
-        // Setup OSMDroid Map
-        map.setTileSource(TileSourceFactory.MAPNIK)
-        map.setMultiTouchControls(true)
-        map.controller.setZoom(13.0)
-        map.controller.setCenter(GeoPoint(0.5070677, 101.4477930)) // Default center dari kontrak API
-        map.overlays.add(CopyrightOverlay(this)) // Atribusi © OpenStreetMap
+        // Setup OSMDroid Map menggunakan Wikimedia tile source (Berbasis data OSM, bebas blokir 403)
+        val wikimediaTileSource = XYTileSource(
+            "Wikimedia",
+            0, 19, 256, ".png",
+            arrayOf("https://maps.wikimedia.org/osm-intl/"),
+            "© Wikimedia contributors"
+        )
+        mapView.setTileSource(wikimediaTileSource)
+        mapView.setMultiTouchControls(true)
+        mapView.controller.setZoom(13.0)
+        mapView.controller.setCenter(GeoPoint(0.5070677, 101.4477930))
+        mapView.overlays.add(CopyrightOverlay(this))
 
         setupSosTouchListener()
         setupCategoryFilter()
@@ -115,7 +120,7 @@ class PetaSiagaActivity : AppCompatActivity() {
     }
 
     private fun filterAndDisplayPoints(categoryFilter: String?) {
-        map.overlays.removeAll { it is Marker }
+        mapView.overlays.removeAll { it is Marker }
 
         val filteredPoints = if (categoryFilter.isNullOrEmpty()) {
             allMapPoints
@@ -126,7 +131,7 @@ class PetaSiagaActivity : AppCompatActivity() {
         val titik = filteredPoints.map { GeoPoint(it.latitude, it.longitude) }
 
         filteredPoints.forEach { p ->
-            val marker = Marker(map).apply {
+            val marker = Marker(mapView).apply {
                 position = GeoPoint(p.latitude, p.longitude)
                 title = p.judul
                 snippet = "${p.kategori ?: "-"} • urgensi ${p.urgensi} • ${p.status}"
@@ -140,22 +145,22 @@ class PetaSiagaActivity : AppCompatActivity() {
                     true
                 }
             }
-            map.overlays.add(marker)
+            mapView.overlays.add(marker)
         }
 
         tvRingkasan.text = "${filteredPoints.size} laporan siaga"
 
         when {
             titik.size == 1 -> {
-                map.controller.setZoom(15.0)
-                map.controller.setCenter(titik[0])
+                mapView.controller.setZoom(15.0)
+                mapView.controller.setCenter(titik[0])
             }
-            titik.size > 1 -> map.post {
-                map.zoomToBoundingBox(BoundingBox.fromGeoPoints(titik), true, 120)
+            titik.size > 1 -> mapView.post {
+                mapView.zoomToBoundingBox(BoundingBox.fromGeoPoints(titik), true, 120)
             }
         }
 
-        map.invalidate()
+        mapView.invalidate()
     }
 
     private fun ikonUrgensi(urgensi: String): Drawable {
@@ -214,7 +219,7 @@ class PetaSiagaActivity : AppCompatActivity() {
             try {
                 val api = RetrofitClient.getApiService(this@PetaSiagaActivity)
 
-                val center = map.mapCenter
+                val center = mapView.mapCenter
                 val lat = center.latitude
                 val lon = center.longitude
 
@@ -224,7 +229,7 @@ class PetaSiagaActivity : AppCompatActivity() {
                 val katPart = "6".toRequestBody(textType)
                 val latPart = lat.toString().toRequestBody(textType)
                 val lonPart = lon.toString().toRequestBody(textType)
-                val terdampakPart = "1".toRequestBody(textType)
+                val terdampakTest = "1".toRequestBody(textType)
 
                 val response = api.createLaporan(
                     judul = judulPart,
@@ -232,7 +237,7 @@ class PetaSiagaActivity : AppCompatActivity() {
                     kategoriId = katPart,
                     latitude = latPart,
                     longitude = lonPart,
-                    jumlahTerdampak = terdampakPart,
+                    jumlahTerdampak = terdampakTest,
                     foto = null
                 )
 
@@ -256,11 +261,11 @@ class PetaSiagaActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        map.onResume()
+        mapView.onResume()
     }
 
     override fun onPause() {
         super.onPause()
-        map.onPause()
+        mapView.onPause()
     }
 }

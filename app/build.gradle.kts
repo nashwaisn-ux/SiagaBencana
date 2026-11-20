@@ -15,7 +15,7 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        buildConfigField("String", "BASE_URL", "\"http://10.0.2.2:8000/api/\"")
+        buildConfigField("String", "BASE_URL", "\"http://192.168.137.1:8000/api/\"")
         androidResources.localeFilters.addAll(listOf("id", "en"))
     }
 
