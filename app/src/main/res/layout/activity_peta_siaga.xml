@@ -1,7 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- FITUR UNGGULAN: Peta Siaga + SOS.
-     Ganti FrameLayout mapContainer dengan fragment peta (Google Maps SupportMapFragment atau osmdroid MapView).
-     SOS: pada btnSos pakai setOnTouchListener, isi progressSos 0-100 selama 3 detik; jika lepas sebelum penuh, reset. -->
 <androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
@@ -12,8 +9,13 @@
     <FrameLayout
         android:id="@+id/mapContainer"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="@color/siaga_map_bg" />
+        android:layout_height="match_parent">
+
+        <org.osmdroid.views.MapView
+            android:id="@+id/map"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+    </FrameLayout>
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -113,13 +115,13 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Radius siaga" />
+                android:text="Ringkasan Siaga" />
 
             <TextView
                 android:id="@+id/tvRingkasan"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="2 kritis · 1 tinggi · 1 rendah"
+                android:text="Memuat data..."
                 android:textColor="@color/siaga_red"
                 android:textSize="12sp"
                 android:textStyle="bold" />
@@ -169,7 +171,7 @@
                     android:id="@+id/tvTerdekatJudul"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Banjir meluap di permukiman"
+                    android:text="Pilih titik di peta untuk melihat detail"
                     android:textColor="@color/siaga_text"
                     android:textSize="13sp"
                     android:textStyle="bold" />
@@ -179,7 +181,7 @@
                     style="@style/SiagaCaption"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="850 m dari Anda · 20 menit lalu" />
+                    android:text="Status laporan akan muncul di sini" />
             </LinearLayout>
 
             <ImageView
