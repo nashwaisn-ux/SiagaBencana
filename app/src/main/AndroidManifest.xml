@@ -57,6 +57,16 @@
             android:name=".LupaSandiActivity"
             android:exported="false" />
 
+        <activity
+            android:name=".UbahDataDiriActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".RegistrasiActivity"
+            android:exported="false" />
+
+
+
     </application>
 
 </manifest>

@@ -48,7 +48,9 @@ class LoginActivity : AppCompatActivity() {
         }
 
         b.tvDaftar.setOnClickListener {
-            // Opsional: pendaftaran menyusul
+            if (isNavigating) return@setOnClickListener
+            val intent = Intent(this, RegistrasiActivity::class.java)
+            startActivity(intent)
         }
     }
 
@@ -90,6 +92,7 @@ class LoginActivity : AppCompatActivity() {
         b.btnMasuk.isEnabled = !loading
         b.toggleRole.isEnabled = !loading
         b.tvLupaSandi.isEnabled = !loading
+        b.tvDaftar.isEnabled = !loading
     }
 
     private fun openMain() {
