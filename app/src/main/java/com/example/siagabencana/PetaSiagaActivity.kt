@@ -42,7 +42,268 @@ class PetaSiagaActivity : AppCompatActivity() {
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> cancelSos()
             }
             true
+import android.animation.ValueAnimator
+import android.annotation.SuppressLint
+import android.graphics.Color
+import android.graphics.drawable.Drawable
+import android.os.Bundle
+import android.view.MotionEvent
+import android.view.View
+import android.widget.ImageButton
+import android.widget.TextView
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
+import androidx.core.graphics.drawable.DrawableCompat
+import androidx.lifecycle.lifecycleScope
+import com.example.siagabencana.model.MapPoint
+import com.example.siagabencana.network.RetrofitClient
+import com.google.android.material.button.MaterialButton
+import com.google.android.material.chip.ChipGroup
+import com.google.android.material.progressindicator.LinearProgressIndicator
+import kotlinx.coroutines.launch
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.osmdroid.config.Configuration
+import org.osmdroid.tileprovider.tilesource.TileSourceFactory
+import org.osmdroid.util.BoundingBox
+import org.osmdroid.util.GeoPoint
+import org.osmdroid.views.MapView
+import org.osmdroid.views.overlay.CopyrightOverlay
+import org.osmdroid.views.overlay.Marker
+import java.io.File
+import java.io.IOException
+
+class PetaSiagaActivity : AppCompatActivity() {
+
+    private lateinit var map: MapView
+    private lateinit var progressSos: LinearProgressIndicator
+    private lateinit var btnSos: MaterialButton
+    private lateinit var tvRingkasan: TextView
+    private lateinit var tvTerdekatJudul: TextView
+    private lateinit var tvTerdekatJarak: TextView
+    private lateinit var chipGroupJenis: ChipGroup
+
+    private var sosAnimator: ValueAnimator? = null
+    private var isSosTriggered = false
+    private var allMapPoints: List<MapPoint> = emptyList()
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+        // 1. Konfigurasi osmdroid sebelum setContentView (Aturan Wajib OpenStreetMap User-Agent & Cache internal)
+        Configuration.getInstance().apply {
+            load(applicationContext, getSharedPreferences("osmdroid", MODE_PRIVATE))
+            userAgentValue = "SiagaBencana/1.0 (kontak: dev@siagabencana.app)"
+            osmdroidBasePath = File(cacheDir, "osmdroid")
+            osmdroidTileCache = File(osmdroidBasePath, "tiles")
         }
+
+        setContentView(R.layout.activity_peta_siaga)
+
+        map = findViewById(R.id.map)
+        progressSos = findViewById(R.id.progressSos)
+        btnSos = findViewById(R.id.btnSos)
+        tvRingkasan = findViewById(R.id.tvRingkasan)
+        tvTerdekatJudul = findViewById(R.id.tvTerdekatJudul)
+        tvTerdekatJarak = findViewById(R.id.tvTerdekatJarak)
+        chipGroupJenis = findViewById(R.id.chipGroupJenis)
+
+        findViewById<ImageButton>(R.id.btnBack)?.setOnClickListener { finish() }
+
+        // Setup OSMDroid Map
+        map.setTileSource(TileSourceFactory.MAPNIK)
+        map.setMultiTouchControls(true)
+        map.controller.setZoom(13.0)
+        map.controller.setCenter(GeoPoint(0.5070677, 101.4477930)) // Default center dari kontrak API
+        map.overlays.add(CopyrightOverlay(this)) // Atribusi © OpenStreetMap
+
+        setupSosTouchListener()
+        setupCategoryFilter()
+
+        muatLaporan()
+    }
+
+    private fun setupCategoryFilter() {
+        chipGroupJenis.setOnCheckedStateChangeListener { _, checkedIds ->
+            if (checkedIds.isEmpty()) return@setOnCheckedStateChangeListener
+            val selectedCategory = when (checkedIds.first()) {
+                R.id.chipBanjir -> "Banjir"
+                R.id.chipKebakaran -> "Kebakaran"
+                R.id.chipLongsor -> "Longsor"
+                else -> null
+            }
+            filterAndDisplayPoints(selectedCategory)
+        }
+    }
+
+    private fun muatLaporan() {
+        lifecycleScope.launch {
+            try {
+                val resp = RetrofitClient.getApiService(this@PetaSiagaActivity).getPeta()
+                val data = resp.body()?.data
+                if (resp.isSuccessful && data != null) {
+                    allMapPoints = data
+                    filterAndDisplayPoints(null)
+                } else {
+                    Toast.makeText(this@PetaSiagaActivity, "Gagal memuat peta", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: IOException) {
+                Toast.makeText(this@PetaSiagaActivity, "Tidak ada koneksi", Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                Toast.makeText(this@PetaSiagaActivity, "Terjadi kesalahan memuat data", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun filterAndDisplayPoints(categoryFilter: String?) {
+        map.overlays.removeAll { it is Marker }
+
+        val filteredPoints = if (categoryFilter.isNullOrEmpty()) {
+            allMapPoints
+        } else {
+            allMapPoints.filter { it.kategori.equals(categoryFilter, ignoreCase = true) }
+        }
+
+        val titik = filteredPoints.map { GeoPoint(it.latitude, it.longitude) }
+
+        filteredPoints.forEach { p ->
+            val marker = Marker(map).apply {
+                position = GeoPoint(p.latitude, p.longitude)
+                title = p.judul
+                snippet = "${p.kategori ?: "-"} • urgensi ${p.urgensi} • ${p.status}"
+                setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                icon = ikonUrgensi(p.urgensi)
+
+                setOnMarkerClickListener { m, _ ->
+                    m.showInfoWindow()
+                    tvTerdekatJudul.text = p.judul
+                    tvTerdekatJarak.text = "${p.kategori ?: "Bencana"} · Urgensi: ${p.urgensi} · Status: ${p.status}"
+                    true
+                }
+            }
+            map.overlays.add(marker)
+        }
+
+        tvRingkasan.text = "${filteredPoints.size} laporan siaga"
+
+        when {
+            titik.size == 1 -> {
+                map.controller.setZoom(15.0)
+                map.controller.setCenter(titik[0])
+            }
+            titik.size > 1 -> map.post {
+                map.zoomToBoundingBox(BoundingBox.fromGeoPoints(titik), true, 120)
+            }
+        }
+
+        map.invalidate()
+    }
+
+    private fun ikonUrgensi(urgensi: String): Drawable {
+        val drawable = ContextCompat.getDrawable(this, R.drawable.ic_location)!!.mutate()
+        val wrappedDrawable = DrawableCompat.wrap(drawable)
+        DrawableCompat.setTint(wrappedDrawable, warnaUrgensi(urgensi))
+        return wrappedDrawable
+    }
+
+    private fun warnaUrgensi(urgensi: String): Int = when (urgensi.lowercase()) {
+        "kritis" -> ContextCompat.getColor(this, R.color.siaga_red)
+        "tinggi" -> ContextCompat.getColor(this, R.color.siaga_orange)
+        "sedang" -> Color.parseColor("#CA8A04")
+        else -> ContextCompat.getColor(this, R.color.siaga_green)
+    }
+
+    @SuppressLint("ClickableViewAccessibility")
+    private fun setupSosTouchListener() {
+        btnSos.setOnTouchListener { _, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    isSosTriggered = false
+                    progressSos.progress = 0
+
+                    sosAnimator = ValueAnimator.ofInt(0, 100).apply {
+                        duration = 3000
+                        addUpdateListener { animation ->
+                            val value = animation.animatedValue as Int
+                            progressSos.progress = value
+                            if (value == 100 && !isSosTriggered) {
+                                isSosTriggered = true
+                                triggerSosEmergency()
+                            }
+                        }
+                        start()
+                    }
+                    true
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    sosAnimator?.cancel()
+                    progressSos.progress = 0
+                    if (!isSosTriggered) {
+                        Toast.makeText(this, "Tahan tombol 3 detik untuk mengirim SOS", Toast.LENGTH_SHORT).show()
+                    }
+                    true
+                }
+                else -> false
+            }
+        }
+    }
+
+    private fun triggerSosEmergency() {
+        Toast.makeText(this, "🚨 MENGIRIM SINYAL SOS DARURAT...", Toast.LENGTH_LONG).show()
+
+        lifecycleScope.launch {
+            try {
+                val api = RetrofitClient.getApiService(this@PetaSiagaActivity)
+
+                val center = map.mapCenter
+                val lat = center.latitude
+                val lon = center.longitude
+
+                val textType = "text/plain".toMediaTypeOrNull()
+                val judulPart = "Sinyal SOS Darurat!".toRequestBody(textType)
+                val deskPart = "Sinyal SOS Darurat dikirim pengguna dari Peta Siaga. Butuh bantuan evakuasi darurat!".toRequestBody(textType)
+                val katPart = "6".toRequestBody(textType)
+                val latPart = lat.toString().toRequestBody(textType)
+                val lonPart = lon.toString().toRequestBody(textType)
+                val terdampakPart = "1".toRequestBody(textType)
+
+                val response = api.createLaporan(
+                    judul = judulPart,
+                    deskripsi = deskPart,
+                    kategoriId = katPart,
+                    latitude = latPart,
+                    longitude = lonPart,
+                    jumlahTerdampak = terdampakPart,
+                    foto = null
+                )
+
+                if (response.isSuccessful && response.body()?.success == true) {
+                    Toast.makeText(
+                        this@PetaSiagaActivity,
+                        "🚨 SINYAL SOS DARURAT BERHASIL DIKIRIM KE PETUGAS!",
+                        Toast.LENGTH_LONG
+                    ).show()
+                    muatLaporan()
+                } else {
+                    Toast.makeText(this@PetaSiagaActivity, "Gagal mengirim SOS: ${response.message()}", Toast.LENGTH_LONG).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(this@PetaSiagaActivity, "Gagal terhubung ke server untuk SOS", Toast.LENGTH_LONG).show()
+            } finally {
+                progressSos.progress = 0
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        map.onResume()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        map.onPause()
     }
 
     private fun startSos() {
