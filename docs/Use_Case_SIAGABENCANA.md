@@ -304,8 +304,6 @@ Dokumen ini siap dipakai untuk bab **Analisis Kebutuhan / Use Case** di laporan.
 
 ## 5. Aturan Skor Urgensi Otomatis (UC-07c)
 
-Dihitung saat laporan dibuat:
-
 | Komponen | Skor |
 |---|---|
 | Bobot kategori (banjir 2, kebakaran 3, longsor 3, pencemaran 1, karhutla 3, lainnya 0) | 0 sampai 3 |
@@ -313,11 +311,3 @@ Dihitung saat laporan dibuat:
 | Deskripsi memuat kata kunci (korban, terjebak, meluas, evakuasi, meninggal) | +2 |
 
 Total skor: 0-2 rendah, 3-4 sedang, 5-6 tinggi, 7 ke atas kritis.
-
----
-
-## Catatan untuk tim (bukan bagian laporan)
-
-- **UC-08 (SOS) dan UC-18 (kelola akun)** adalah fitur tambahan buatan Anggota 2 yang belum ada di ERD dan kontrak API awal. Jika dimasukkan ke laporan, perbarui juga daftar endpoint.
-- **Perilaku SOS saat ini:** laporan SOS ditempelkan ke akun masyarakat pertama di database dan kategori pertama (Banjir). Sebaiknya diganti ke kategori "Lainnya". Sesuaikan deskripsi UC-08 jika Anggota 2 mengubahnya.
-- **Fitur belum jadi:** jika ada use case yang tidak sempat tersambung ke aplikasi sebelum deadline, tandai di laporan sebagai "pengembangan lanjutan" agar jujur dan konsisten dengan hasil implementasi.
