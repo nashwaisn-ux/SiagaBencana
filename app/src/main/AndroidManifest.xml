@@ -49,6 +49,14 @@
             android:name=".PetaSiagaActivity"
             android:exported="false" />
 
+        <activity
+            android:name=".TentangAplikasiActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".LupaSandiActivity"
+            android:exported="false" />
+
     </application>
 
 </manifest>

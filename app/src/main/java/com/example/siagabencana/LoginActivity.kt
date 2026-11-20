@@ -42,7 +42,9 @@ class LoginActivity : AppCompatActivity() {
         }
 
         b.tvLupaSandi.setOnClickListener {
-            // Opsional: bisa diarahkan atau diberi info singkat
+            if (isNavigating) return@setOnClickListener
+            val intent = Intent(this, LupaSandiActivity::class.java)
+            startActivity(intent)
         }
 
         b.tvDaftar.setOnClickListener {
@@ -87,6 +89,7 @@ class LoginActivity : AppCompatActivity() {
         b.progressLogin.isVisible = loading
         b.btnMasuk.isEnabled = !loading
         b.toggleRole.isEnabled = !loading
+        b.tvLupaSandi.isEnabled = !loading
     }
 
     private fun openMain() {
