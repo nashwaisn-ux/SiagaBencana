@@ -41,11 +41,11 @@ class DashboardFragment : Fragment() {
         }
 
         view.findViewById<LinearLayout>(R.id.aksiRelawan)?.setOnClickListener {
-            (activity as? MainActivity)?.navigateToTab(R.id.nav_relawan)
+            (activity as? MainActivity)?.navigateTo(R.id.nav_relawan)
         }
 
         view.findViewById<LinearLayout>(R.id.aksiRiwayat)?.setOnClickListener {
-            (activity as? MainActivity)?.navigateToTab(R.id.nav_riwayat)
+            (activity as? MainActivity)?.navigateTo(R.id.nav_riwayat)
         }
 
         view.findViewById<LinearLayout>(R.id.bannerSiaga)?.setOnClickListener {
@@ -53,7 +53,7 @@ class DashboardFragment : Fragment() {
         }
 
         view.findViewById<TextView>(R.id.tvLihatSemua)?.setOnClickListener {
-            (activity as? MainActivity)?.navigateToTab(R.id.nav_laporan)
+            (activity as? MainActivity)?.navigateTo(R.id.nav_laporan)
         }
     }
 }
