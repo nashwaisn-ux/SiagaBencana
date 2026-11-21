@@ -13,6 +13,7 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
 import com.example.siagabencana.BuatLaporanActivity
 import com.example.siagabencana.DetailLaporanActivity
 import com.example.siagabencana.MainActivity
@@ -23,7 +24,8 @@ import com.example.siagabencana.databinding.ItemLaporanBinding
 import com.example.siagabencana.model.Laporan
 import com.example.siagabencana.network.RetrofitClient
 import kotlinx.coroutines.launch
-import java.util.Locale
+import java.util.Calendar
+import java.util.TimeZone
 
 class DashboardFragment : Fragment() {
 
@@ -31,6 +33,8 @@ class DashboardFragment : Fragment() {
     private val terbaruList = mutableListOf<Laporan>()
     private lateinit var laporanAdapter: TerbaruAdapter
 
+    private var tvSapaan: TextView? = null
+    private var tvNama: TextView? = null
     private var tvStatBaru: TextView? = null
     private var tvStatProses: TextView? = null
     private var tvStatSelesai: TextView? = null
@@ -57,7 +61,8 @@ class DashboardFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        val tvNama = view.findViewById<TextView>(R.id.tvNama)
+        tvSapaan = view.findViewById(R.id.tvSapaan)
+        tvNama = view.findViewById(R.id.tvNama)
         tvStatBaru = view.findViewById(R.id.tvStatBaru)
         tvStatProses = view.findViewById(R.id.tvStatProses)
         tvStatSelesai = view.findViewById(R.id.tvStatSelesai)
@@ -67,6 +72,7 @@ class DashboardFragment : Fragment() {
 
         val rvTerbaru = view.findViewById<RecyclerView>(R.id.rvTerbaru)
 
+        tvSapaan?.text = getSapaanIndonesia()
         tvNama?.text = sessionManager.getUserName().ifEmpty { "Pengguna" }
 
         laporanAdapter = TerbaruAdapter(terbaruList) { laporan ->
@@ -116,7 +122,19 @@ class DashboardFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
+        tvSapaan?.text = getSapaanIndonesia()
+        tvNama?.text = sessionManager.getUserName().ifEmpty { "Pengguna" }
         loadDashboardStats()
+    }
+
+    private fun getSapaanIndonesia(): String {
+        val hour = Calendar.getInstance(TimeZone.getTimeZone("Asia/Jakarta")).get(Calendar.HOUR_OF_DAY)
+        return when (hour) {
+            in 4..10 -> "Selamat pagi,"
+            in 11..14 -> "Selamat siang,"
+            in 15..18 -> "Selamat sore,"
+            else -> "Selamat malam,"
+        }
     }
 
     private fun loadDashboardStats() {
@@ -185,6 +203,16 @@ class DashboardFragment : Fragment() {
             val katName = l.kategori?.nama ?: "Bencana"
             holder.b.tvMeta.text = "$katName · ${formatTanggal(l.created_at)}"
             holder.b.tvBadge.applyBadge(l)
+
+            if (!l.foto_url.isNullOrBlank()) {
+                Glide.with(holder.b.root.context)
+                    .load(l.foto_url)
+                    .placeholder(R.drawable.bg_thumb)
+                    .into(holder.b.imgThumb)
+            } else {
+                holder.b.imgThumb.setImageResource(R.drawable.bg_thumb)
+            }
+
             holder.b.root.setOnClickListener { onClick(l) }
         }
     }

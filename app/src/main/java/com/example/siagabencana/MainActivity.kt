@@ -15,6 +15,8 @@ import com.example.siagabencana.databinding.ActivityMainBinding
 import com.example.siagabencana.ui.DashboardFragment
 import com.example.siagabencana.ui.LaporanFragment
 import com.example.siagabencana.ui.ProfilFragment
+import com.example.siagabencana.ui.RelawanFragment
+import com.example.siagabencana.ui.RiwayatFragment
 import com.example.siagabencana.ui.StaticFragment
 import com.example.siagabencana.ui.toast
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -120,8 +122,8 @@ class MainActivity : AppCompatActivity() {
         val fragment: Fragment = when (menuId) {
             R.id.nav_beranda -> DashboardFragment()
             R.id.nav_laporan -> LaporanFragment()
-            R.id.nav_relawan -> StaticFragment.of(R.layout.fragment_relawan)
-            R.id.nav_riwayat -> StaticFragment.of(R.layout.fragment_riwayat)
+            R.id.nav_relawan -> RelawanFragment()
+            R.id.nav_riwayat -> RiwayatFragment()
             else -> ProfilFragment()
         }
 

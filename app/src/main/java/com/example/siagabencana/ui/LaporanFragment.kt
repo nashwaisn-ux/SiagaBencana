@@ -11,6 +11,7 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
 import com.example.siagabencana.DetailLaporanActivity
 import com.example.siagabencana.R
 import com.example.siagabencana.databinding.FragmentLaporanBinding
@@ -70,7 +71,7 @@ class LaporanFragment : Fragment() {
         binding.etCari.doAfterTextChanged { text ->
             searchJob?.cancel()
             searchJob = viewLifecycleOwner.lifecycleScope.launch {
-                delay(400) // Debounce 400ms
+                delay(400)
                 currentSearch = text?.toString()?.trim()?.takeIf { s -> s.isNotEmpty() }
                 currentPage = 1
                 loadLaporan(isRefresh = true)
@@ -102,8 +103,7 @@ class LaporanFragment : Fragment() {
                     val pastVisibleItems = layoutManager.findFirstVisibleItemPosition()
 
                     if ((visibleItemCount + pastVisibleItems) >= totalItemCount - 3) {
-                        currentPage++
-                        loadLaporan(isLoadMore = true)
+                        loadLaporan(isLoadMore = true, nextPage = currentPage + 1)
                     }
                 }
             }
@@ -112,7 +112,14 @@ class LaporanFragment : Fragment() {
         loadLaporan(isRefresh = true)
     }
 
-    private fun loadLaporan(isRefresh: Boolean = false, isLoadMore: Boolean = false) {
+    override fun onResume() {
+        super.onResume()
+        currentPage = 1
+        loadLaporan(isRefresh = true)
+    }
+
+    private fun loadLaporan(isRefresh: Boolean = false, isLoadMore: Boolean = false, nextPage: Int = 1) {
+        val targetPage = if (isLoadMore) nextPage else 1
         if (isLoadMore) {
             isLoadingMore = true
         } else if (isRefresh) {
@@ -127,7 +134,7 @@ class LaporanFragment : Fragment() {
                     search = currentSearch,
                     status = currentStatus,
                     urgensi = currentUrgensi,
-                    page = currentPage,
+                    page = targetPage,
                     perPage = 15
                 )
             }
@@ -140,6 +147,7 @@ class LaporanFragment : Fragment() {
                 is ApiResult.Success -> {
                     val paginated = res.data
                     val items = paginated?.items.orEmpty()
+                    currentPage = paginated?.meta?.current_page ?: targetPage
                     lastPage = paginated?.meta?.last_page ?: 1
                     val totalCount = paginated?.meta?.total ?: items.size
 
@@ -187,6 +195,15 @@ class LaporanFragment : Fragment() {
             holder.b.tvMeta.text = "$katName · ${formatTanggal(l.created_at)}"
             holder.b.tvBadge.applyBadge(l)
             holder.b.cbPilih.isVisible = false
+
+            if (!l.foto_url.isNullOrBlank()) {
+                Glide.with(holder.b.root.context)
+                    .load(l.foto_url)
+                    .placeholder(R.drawable.bg_thumb)
+                    .into(holder.b.imgThumb)
+            } else {
+                holder.b.imgThumb.setImageResource(R.drawable.bg_thumb)
+            }
 
             holder.b.root.setOnClickListener { onClick(l) }
         }

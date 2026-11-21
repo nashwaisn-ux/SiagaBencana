@@ -16,7 +16,6 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.example.siagabencana.data.SessionManager
 import com.example.siagabencana.databinding.ActivityBuatLaporanBinding
 import com.example.siagabencana.network.ApiResult
 import com.example.siagabencana.network.RetrofitClient
@@ -35,12 +34,14 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.osmdroid.config.Configuration
 import org.osmdroid.events.MapEventsReceiver
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
+import org.osmdroid.tileprovider.tilesource.XYTileSource
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.MapEventsOverlay
 import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.Polygon
 import java.io.File
+import java.io.FileOutputStream
 import java.util.Locale
 
 class BuatLaporanActivity : AppCompatActivity() {
@@ -82,7 +83,7 @@ class BuatLaporanActivity : AppCompatActivity() {
 
         Configuration.getInstance().apply {
             load(applicationContext, getSharedPreferences("osmdroid", MODE_PRIVATE))
-            userAgentValue = "SiagaBencana/1.0"
+            userAgentValue = "com.example.siagabencana/1.0 (Android OS; contact: dev@siagabencana.app)"
             osmdroidBasePath = File(cacheDir, "osmdroid")
             osmdroidTileCache = File(osmdroidBasePath, "tiles")
         }
@@ -110,7 +111,11 @@ class BuatLaporanActivity : AppCompatActivity() {
         refreshFoto()
 
         b.btnTambahFoto.setOnClickListener {
-            pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+            if (fotos.size >= MAX_FOTO) {
+                toast("Maksimal $MAX_FOTO foto")
+            } else {
+                pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+            }
         }
         b.tvUbahLokasi.setOnClickListener { showMapLocationPicker() }
         b.btnKirim.setOnClickListener { submit() }
@@ -136,10 +141,10 @@ class BuatLaporanActivity : AppCompatActivity() {
                     b.tvKoordinat.text = String.format(Locale.US, "%.4f, %.4f", lat, lng)
                     b.tvStatusLokasi.text = "Lokasi laporan dimuat"
 
-                    when (l.kategori_id_value()) {
-                        2 -> b.chipGroupJenis.check(R.id.chipJenisKebakaran)
+                    when (l.kategori?.id ?: 1) {
+                        2, 5 -> b.chipGroupJenis.check(R.id.chipJenisKebakaran)
                         3 -> b.chipGroupJenis.check(R.id.chipJenisLongsor)
-                        6 -> b.chipGroupJenis.check(R.id.chipJenisLainnya)
+                        4, 6 -> b.chipGroupJenis.check(R.id.chipJenisLainnya)
                         else -> b.chipGroupJenis.check(R.id.chipJenisBanjir)
                     }
                 }
@@ -149,10 +154,6 @@ class BuatLaporanActivity : AppCompatActivity() {
                 }
             }
         }
-    }
-
-    private fun com.example.siagabencana.model.Laporan.kategori_id_value(): Int {
-        return this.kategori?.id ?: 1
     }
 
     private fun requestLocation() {
@@ -192,20 +193,24 @@ class BuatLaporanActivity : AppCompatActivity() {
     }
 
     private fun showMapLocationPicker() {
-        if (userGpsLat == null || userGpsLng == null) {
-            requestLocation()
-            toast("Mendeteksi posisi GPS Anda terlebih dahulu...")
-            return
-        }
-
-        val centerLat = userGpsLat!!
-        val centerLng = userGpsLng!!
+        val centerLat = lat ?: userGpsLat ?: 0.5070677
+        val centerLng = lng ?: userGpsLng ?: 101.4477930
 
         val dialogView = layoutInflater.inflate(R.layout.dialog_map_picker, null)
         val mapView = dialogView.findViewById<MapView>(R.id.pickerMapView)
         val tvInfo = dialogView.findViewById<TextView>(R.id.tvPickerInfo)
 
-        mapView.setTileSource(TileSourceFactory.MAPNIK)
+        val cartoTileSource = XYTileSource(
+            "CartoDBVoyager",
+            0, 19, 256, ".png",
+            arrayOf(
+                "https://a.basemaps.cartocdn.com/rastertiles/voyager/",
+                "https://b.basemaps.cartocdn.com/rastertiles/voyager/",
+                "https://c.basemaps.cartocdn.com/rastertiles/voyager/"
+            ),
+            "© OpenStreetMap contributors, © CartoDB"
+        )
+        mapView.setTileSource(cartoTileSource)
         mapView.setMultiTouchControls(true)
         mapView.controller.setZoom(15.5)
         val centerGeo = GeoPoint(centerLat, centerLng)
@@ -222,7 +227,7 @@ class BuatLaporanActivity : AppCompatActivity() {
         val userMarker = Marker(mapView).apply {
             position = centerGeo
             title = "Posisi Anda"
-            snippet = "Pusat radius 1 km"
+            snippet = "Pusat lokasi"
             setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
         }
         mapView.overlays.add(userMarker)
@@ -231,29 +236,19 @@ class BuatLaporanActivity : AppCompatActivity() {
         val selectedMarker = Marker(mapView).apply {
             position = selectedGeo
             title = "Titik Laporan"
-            snippet = "Ketuk lokasi di dalam lingkaran 1 km"
+            snippet = "Ketuk pada peta untuk menandai titik"
             setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
         }
         mapView.overlays.add(selectedMarker)
 
-        val results = FloatArray(1)
-        Location.distanceBetween(centerLat, centerLng, selectedGeo.latitude, selectedGeo.longitude, results)
-        tvInfo.text = "Jarak titik terpilih: ${results[0].toInt()} m dari posisi Anda (Batas 1 km)."
+        tvInfo.text = "Ketuk lokasi pada peta untuk memperbarui koordinat."
 
         val eventsReceiver = object : MapEventsReceiver {
             override fun singleTapConfirmedHelper(p: GeoPoint): Boolean {
-                val dist = FloatArray(1)
-                Location.distanceBetween(centerLat, centerLng, p.latitude, p.longitude, dist)
-                val distanceInMeters = dist[0]
-
-                if (distanceInMeters > 1000.0f) {
-                    toast("Titik berada di luar radius 1 km (${distanceInMeters.toInt()}m). Pilih lokasi lebih dekat.")
-                } else {
-                    selectedGeo = p
-                    selectedMarker.position = p
-                    tvInfo.text = "Titik terpilih: ${String.format(Locale.US, "%.4f, %.4f", p.latitude, p.longitude)} (${distanceInMeters.toInt()}m dari Anda)"
-                    mapView.invalidate()
-                }
+                selectedGeo = p
+                selectedMarker.position = p
+                tvInfo.text = "Titik terpilih: ${String.format(Locale.US, "%.4f, %.4f", p.latitude, p.longitude)}"
+                mapView.invalidate()
                 return true
             }
 
@@ -263,15 +258,13 @@ class BuatLaporanActivity : AppCompatActivity() {
 
         val dialog = MaterialAlertDialogBuilder(this)
             .setTitle("📍 Tandai Titik Lokasi Spesifik")
-            .setMessage("Ketuk pada peta di dalam lingkaran merah (radius 1 km dari lokasi Anda) untuk menandai lokasi spesifik bencana.")
+            .setMessage("Ketuk pada peta untuk memilih lokasi bencana.")
             .setView(dialogView)
             .setPositiveButton("Gunakan Titik Ini") { _, _ ->
                 lat = selectedGeo.latitude
                 lng = selectedGeo.longitude
                 b.tvKoordinat.text = String.format(Locale.US, "%.4f, %.4f", lat, lng)
-                val finalDist = FloatArray(1)
-                Location.distanceBetween(centerLat, centerLng, selectedGeo.latitude, selectedGeo.longitude, finalDist)
-                b.tvStatusLokasi.text = "Titik spesifik ditandai (${finalDist[0].toInt()}m dari posisi Anda)"
+                b.tvStatusLokasi.text = "Titik lokasi spesifik ditandai"
                 b.tvStatusLokasi.setTextColor(ContextCompat.getColor(this@BuatLaporanActivity, R.color.siaga_green))
             }
             .setNegativeButton("Batal", null)
@@ -348,13 +341,25 @@ class BuatLaporanActivity : AppCompatActivity() {
 
             var photoPart: MultipartBody.Part? = null
             if (fotos.isNotEmpty()) {
-                val compressedFile = withContext(Dispatchers.IO) {
-                    ImageUtils.compressToJpeg(this@BuatLaporanActivity, fotos.first(), maxSide = 1280, quality = 80)
+                val targetUri = fotos.first()
+                val finalFile = withContext(Dispatchers.IO) {
+                    val compressed = ImageUtils.compressToJpeg(this@BuatLaporanActivity, targetUri, maxSide = 1280, quality = 85)
+                    if (compressed != null && compressed.exists()) {
+                        compressed
+                    } else {
+                        val tempFile = File(cacheDir, "laporan_photo_${System.currentTimeMillis()}.jpg")
+                        contentResolver.openInputStream(targetUri)?.use { input ->
+                            FileOutputStream(tempFile).use { output ->
+                                input.copyTo(output)
+                            }
+                        }
+                        tempFile
+                    }
                 }
-                if (compressedFile != null && compressedFile.exists()) {
-                    val mimeType = contentResolver.getType(fotos.first()) ?: "image/jpeg"
-                    val reqFile = compressedFile.asRequestBody(mimeType.toMediaTypeOrNull())
-                    photoPart = MultipartBody.Part.createFormData("foto", compressedFile.name, reqFile)
+
+                if (finalFile.exists() && finalFile.length() > 0) {
+                    val reqFile = finalFile.asRequestBody("image/jpeg".toMediaTypeOrNull())
+                    photoPart = MultipartBody.Part.createFormData("foto", finalFile.name, reqFile)
                 }
             }
 

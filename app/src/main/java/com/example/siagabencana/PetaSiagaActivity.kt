@@ -5,6 +5,7 @@ import android.annotation.SuppressLint
 import android.graphics.Color
 import android.graphics.drawable.Drawable
 import android.location.Location
+import android.location.LocationManager
 import android.os.Bundle
 import android.view.MotionEvent
 import android.widget.ImageButton
@@ -24,6 +25,7 @@ import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
+import org.osmdroid.tileprovider.tilesource.XYTileSource
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.CopyrightOverlay
@@ -58,10 +60,9 @@ class PetaSiagaActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Konfigurasi osmdroid
         Configuration.getInstance().apply {
             load(applicationContext, getSharedPreferences("osmdroid", MODE_PRIVATE))
-            userAgentValue = "SiagaBencana/1.0"
+            userAgentValue = "com.example.siagabencana/1.0 (Android OS; contact: dev@siagabencana.app)"
             osmdroidBasePath = File(cacheDir, "osmdroid")
             osmdroidTileCache = File(osmdroidBasePath, "tiles")
         }
@@ -79,7 +80,6 @@ class PetaSiagaActivity : AppCompatActivity() {
 
         findViewById<ImageButton>(R.id.btnBack)?.setOnClickListener { finish() }
 
-        // Tombol Zoom In & Zoom Out
         findViewById<ImageButton>(R.id.btnZoomIn)?.setOnClickListener {
             mapView.controller.zoomIn()
         }
@@ -87,12 +87,20 @@ class PetaSiagaActivity : AppCompatActivity() {
             mapView.controller.zoomOut()
         }
 
-        // B1: Tile source MAPNIK
-        mapView.setTileSource(TileSourceFactory.MAPNIK)
+        val cartoTileSource = XYTileSource(
+            "CartoDBVoyager",
+            0, 19, 256, ".png",
+            arrayOf(
+                "https://a.basemaps.cartocdn.com/rastertiles/voyager/",
+                "https://b.basemaps.cartocdn.com/rastertiles/voyager/",
+                "https://c.basemaps.cartocdn.com/rastertiles/voyager/"
+            ),
+            "© OpenStreetMap contributors, © CartoDB"
+        )
+        mapView.setTileSource(cartoTileSource)
         mapView.setMultiTouchControls(true)
         mapView.overlays.add(CopyrightOverlay(this))
 
-        // B2: Cek fokus laporan
         focusLat = intent.getDoubleExtra(EXTRA_LAT, Double.NaN)
         focusLng = intent.getDoubleExtra(EXTRA_LNG, Double.NaN)
         focusJudul = intent.getStringExtra(EXTRA_JUDUL)
@@ -111,6 +119,23 @@ class PetaSiagaActivity : AppCompatActivity() {
         setupRadiusFilter()
 
         muatLaporan()
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun fetchUserLocation(): GeoPoint? {
+        return try {
+            val lm = getSystemService(LOCATION_SERVICE) as LocationManager
+            val location = listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER)
+                .mapNotNull { runCatching { lm.getLastKnownLocation(it) }.getOrNull() }
+                .maxByOrNull { it.time }
+            if (location != null) {
+                GeoPoint(location.latitude, location.longitude)
+            } else {
+                null
+            }
+        } catch (_: Exception) {
+            null
+        }
     }
 
     private fun setupCategoryFilter() {
@@ -134,14 +159,11 @@ class PetaSiagaActivity : AppCompatActivity() {
                 R.id.chip1km -> Triple(1000.0, 15.5, "1 km")
                 R.id.chip5km -> Triple(5000.0, 13.0, "5 km")
                 R.id.chip10km -> Triple(10000.0, 11.5, "10 km")
-                else -> Triple(3000.0, 14.0, "3 km") // Default 3 km
+                else -> Triple(3000.0, 14.0, "3 km")
             }
 
             currentRadiusMeters = radiusMeters
-
-            // Smooth Zoom & Center Animation
             mapView.controller.animateTo(currentCenterGeo, zoomLevel, 800L)
-
             filterAndDisplayPoints()
             Toast.makeText(this, "Zoom peta disesuaikan ke area radius $label", Toast.LENGTH_SHORT).show()
         }
@@ -169,7 +191,6 @@ class PetaSiagaActivity : AppCompatActivity() {
     private fun filterAndDisplayPoints() {
         mapView.overlays.removeAll { it is Marker || it is Polygon }
 
-        // Lingkaran Overlay Radius Area
         val radiusPolygon = Polygon(mapView).apply {
             points = createCirclePoints(currentCenterGeo, currentRadiusMeters)
             fillPaint.color = Color.parseColor("#1AD32F2F")
@@ -178,7 +199,6 @@ class PetaSiagaActivity : AppCompatActivity() {
         }
         mapView.overlays.add(0, radiusPolygon)
 
-        // B4: Filter menggunakan contains(ignoreCase)
         val filteredPoints = allMapPoints.filter { p ->
             val kat = p.kategori.orEmpty()
             val matchesCategory = currentCategoryFilter.isNullOrEmpty() ||
@@ -211,7 +231,6 @@ class PetaSiagaActivity : AppCompatActivity() {
             }
             mapView.overlays.add(marker)
 
-            // Auto-show info window if this is the focused report
             if (!focusLat.isNaN() && !focusLng.isNaN() &&
                 Math.abs(p.latitude - focusLat) < 0.0001 && Math.abs(p.longitude - focusLng) < 0.0001
             ) {
@@ -285,15 +304,21 @@ class PetaSiagaActivity : AppCompatActivity() {
     }
 
     private fun triggerSosEmergency() {
+        val userLocation = fetchUserLocation()
+        val lat = userLocation?.latitude ?: if (focusLat.isNaN()) currentCenterGeo.latitude else null
+        val lon = userLocation?.longitude ?: if (focusLng.isNaN()) currentCenterGeo.longitude else null
+
+        if (lat == null || lon == null) {
+            Toast.makeText(this, "Lokasi GPS Anda belum terdeteksi. Nyalakan GPS HP Anda terlebih dahulu.", Toast.LENGTH_LONG).show()
+            progressSos.progress = 0
+            return
+        }
+
         Toast.makeText(this, "🚨 MENGIRIM SINYAL SOS DARURAT...", Toast.LENGTH_LONG).show()
 
         lifecycleScope.launch {
             try {
                 val api = RetrofitClient.getApiService(this@PetaSiagaActivity)
-
-                val center = mapView.mapCenter
-                val lat = center.latitude
-                val lon = center.longitude
 
                 val textType = "text/plain".toMediaTypeOrNull()
                 val judulPart = "Sinyal SOS Darurat!".toRequestBody(textType)

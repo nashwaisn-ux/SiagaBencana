@@ -15,6 +15,8 @@ import com.example.siagabencana.databinding.FragmentRelawanBinding
 import com.example.siagabencana.databinding.ItemRelawanBinding
 import com.example.siagabencana.model.Relawan
 import com.example.siagabencana.network.RetrofitClient
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class RelawanFragment : Fragment() {
@@ -23,6 +25,10 @@ class RelawanFragment : Fragment() {
     private val binding get() = _binding!!
     private val relawanList = mutableListOf<Relawan>()
     private lateinit var adapter: RelawanAdapter
+
+    private var currentSearch: String? = null
+    private var currentStatusFilter: Int = 0 // 0: Semua, 1: Tersedia, 2: Bertugas
+    private var searchJob: Job? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -44,39 +50,69 @@ class RelawanFragment : Fragment() {
             loadRelawan()
         }
 
-        binding.etCari.doAfterTextChanged {
-            loadRelawan(it?.toString())
+        binding.etCari.doAfterTextChanged { text ->
+            searchJob?.cancel()
+            searchJob = viewLifecycleOwner.lifecycleScope.launch {
+                delay(400)
+                currentSearch = text?.toString()?.trim()?.takeIf { it.isNotEmpty() }
+                loadRelawan()
+            }
+        }
+
+        binding.chipGroupStatus.setOnCheckedStateChangeListener { _, checkedIds ->
+            if (checkedIds.isEmpty()) return@setOnCheckedStateChangeListener
+            currentStatusFilter = when (checkedIds.first()) {
+                R.id.chipTersedia -> 1
+                R.id.chipBertugas -> 2
+                else -> 0
+            }
+            loadRelawan()
         }
 
         loadRelawan()
     }
 
-    private fun loadRelawan(searchQuery: String? = null) {
-        binding.stateLoading.root.isVisible = true
+    override fun onResume() {
+        super.onResume()
+        loadRelawan()
+    }
+
+    private fun loadRelawan() {
+        binding.stateLoading.root.isVisible = relawanList.isEmpty()
         binding.stateError.root.isVisible = false
         binding.stateEmpty.root.isVisible = false
 
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             try {
-                val resp = RetrofitClient.getApiService(requireContext()).getRelawan(search = searchQuery)
+                val resp = RetrofitClient.getApiService(requireContext()).getRelawan(search = currentSearch)
                 binding.stateLoading.root.isVisible = false
                 binding.swipeRefresh.isRefreshing = false
 
                 if (resp.isSuccessful && resp.body()?.success == true) {
-                    val data = resp.body()?.data.orEmpty()
+                    val rawData = resp.body()?.data.orEmpty()
+                    val filteredData = when (currentStatusFilter) {
+                        1 -> rawData.filter { it.tugas_aktif == 0 }
+                        2 -> rawData.filter { it.tugas_aktif > 0 }
+                        else -> rawData
+                    }
+
                     relawanList.clear()
-                    relawanList.addAll(data)
+                    relawanList.addAll(filteredData)
                     adapter.notifyDataSetChanged()
 
-                    binding.tvJumlahRelawan.text = "${data.size} terdaftar"
-                    binding.stateEmpty.root.isVisible = data.isEmpty()
+                    binding.tvJumlahRelawan.text = "${filteredData.size} terdaftar"
+                    binding.stateEmpty.root.isVisible = filteredData.isEmpty()
                 } else {
-                    binding.stateError.root.isVisible = true
+                    if (relawanList.isEmpty()) {
+                        binding.stateError.root.isVisible = true
+                    }
                 }
             } catch (_: Exception) {
                 binding.stateLoading.root.isVisible = false
                 binding.swipeRefresh.isRefreshing = false
-                binding.stateError.root.isVisible = true
+                if (relawanList.isEmpty()) {
+                    binding.stateError.root.isVisible = true
+                }
             }
         }
     }

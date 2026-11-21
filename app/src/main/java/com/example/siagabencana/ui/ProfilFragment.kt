@@ -12,6 +12,7 @@ import android.widget.TextView
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
+import com.bumptech.glide.Glide
 import com.example.siagabencana.LoginActivity
 import com.example.siagabencana.LupaSandiActivity
 import com.example.siagabencana.R
@@ -101,7 +102,12 @@ class ProfilFragment : Fragment() {
         val photoUrl = sessionManager.getUserFotoUrl()
         if (!photoUrl.isNullOrEmpty()) {
             try {
-                imgAvatarProfil?.setImageURI(Uri.parse(photoUrl))
+                if (imgAvatarProfil != null) {
+                    Glide.with(this)
+                        .load(Uri.parse(photoUrl))
+                        .circleCrop()
+                        .into(imgAvatarProfil!!)
+                }
                 imgAvatarProfil?.isVisible = true
                 tvAvatar?.isVisible = false
             } catch (_: Exception) {

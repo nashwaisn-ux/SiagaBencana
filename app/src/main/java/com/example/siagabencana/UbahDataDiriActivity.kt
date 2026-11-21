@@ -13,6 +13,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isVisible
 import androidx.core.widget.doAfterTextChanged
 import androidx.lifecycle.lifecycleScope
+import com.bumptech.glide.Glide
 import com.example.siagabencana.data.SessionManager
 import com.example.siagabencana.databinding.ActivityUbahDataDiriBinding
 import com.example.siagabencana.model.UpdateProfileRequest
@@ -50,7 +51,10 @@ class UbahDataDiriActivity : AppCompatActivity() {
                 lifecycleScope.launch {
                     val croppedUri = withContext(Dispatchers.IO) { cropAndCompressSquare(uri) } ?: uri
                     selectedPhotoUri = croppedUri
-                    binding.imgAvatar.setImageURI(croppedUri)
+                    Glide.with(this@UbahDataDiriActivity)
+                        .load(croppedUri)
+                        .circleCrop()
+                        .into(binding.imgAvatar)
                     binding.imgAvatar.isVisible = true
                     binding.tvAvatarInitial.isVisible = false
                     session.saveProfilePhoto(croppedUri.toString())
@@ -83,7 +87,10 @@ class UbahDataDiriActivity : AppCompatActivity() {
         if (!savedPhoto.isNullOrEmpty()) {
             try {
                 val photoUri = Uri.parse(savedPhoto)
-                binding.imgAvatar.setImageURI(photoUri)
+                Glide.with(this)
+                    .load(photoUri)
+                    .circleCrop()
+                    .into(binding.imgAvatar)
                 binding.imgAvatar.isVisible = true
                 binding.tvAvatarInitial.isVisible = false
             } catch (_: Exception) {
@@ -145,7 +152,7 @@ class UbahDataDiriActivity : AppCompatActivity() {
                                 no_hp = phone.ifEmpty { null },
                                 alamat = address.ifEmpty { null }
                             )
-                            RetrofitClient.getApiService(this@UbahDataDiriActivity).updateProfile(request)
+                            val resp = RetrofitClient.getApiService(this@UbahDataDiriActivity).updateProfile(request)
 
                             // Upload photo multipart if a new photo was cropped/selected
                             selectedPhotoUri?.let { uri ->
@@ -185,9 +192,7 @@ class UbahDataDiriActivity : AppCompatActivity() {
 
     private fun getFileSize(uri: Uri): Long {
         return try {
-            contentResolver.openFileDescriptor(uri, "r")?.use {
-                it.statSize
-            } ?: 0L
+            contentResolver.openFileDescriptor(uri, "r")?.use { it.statSize } ?: 0L
         } catch (_: Exception) {
             0L
         }
@@ -233,7 +238,13 @@ class UbahDataDiriActivity : AppCompatActivity() {
             }
             val requestFile = file.asRequestBody("image/jpeg".toMediaTypeOrNull())
             val body = MultipartBody.Part.createFormData("foto", file.name, requestFile)
-            RetrofitClient.getApiService(this@UbahDataDiriActivity).uploadProfilePhoto(body)
+            val resp = RetrofitClient.getApiService(this@UbahDataDiriActivity).uploadProfilePhoto(body)
+            if (resp.isSuccessful && resp.body()?.success == true) {
+                val serverPhotoUrl = resp.body()?.data?.foto_url
+                if (!serverPhotoUrl.isNullOrBlank()) {
+                    session.saveProfilePhoto(serverPhotoUrl)
+                }
+            }
         } catch (_: Exception) {
             // Handled
         }
