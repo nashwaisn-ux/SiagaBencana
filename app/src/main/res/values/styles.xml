@@ -140,4 +140,27 @@
         <item name="cornerFamily">rounded</item>
         <item name="cornerSize">12dp</item>
     </style>
+
+    <!-- ===================================================== -->
+    <!-- STYLE UNTUK BUBBLE CHAT                             -->
+    <!-- ===================================================== -->
+
+    <!-- Style untuk Bubble Kiri (Chat Masuk) -->
+    <style name="BubbleKiriStyle" parent="ShapeAppearance.Material3.MediumComponent">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSizeTopLeft">16dp</item>
+        <item name="cornerSizeTopRight">16dp</item>
+        <item name="cornerSizeBottomRight">16dp</item>
+        <item name="cornerSizeBottomLeft">4dp</item> <!-- Lancip di kiri bawah -->
+    </style>
+
+    <!-- Style untuk Bubble Kanan (Chat Keluar) -->
+    <style name="BubbleKananStyle" parent="ShapeAppearance.Material3.MediumComponent">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSizeTopLeft">16dp</item>
+        <item name="cornerSizeTopRight">16dp</item>
+        <item name="cornerSizeBottomRight">4dp</item> <!-- Lancip di kanan bawah -->
+        <item name="cornerSizeBottomLeft">16dp</item>
+    </style>
+
 </resources>

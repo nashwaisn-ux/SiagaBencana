@@ -22,13 +22,7 @@ import com.google.android.material.button.MaterialButton
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import java.util.Locale
 
-/**
- * Detail laporan dengan layout terpisah per role (desain R4 sampai R6):
- *  - activity_detail_laporan_masyarakat.xml : Edit, Hapus (laporan sendiri, status Baru)
- *  - activity_detail_laporan_relawan.xml    : Buka peta, Ambil tugas
- *  - activity_detail_laporan_petugas.xml    : Ubah status, Hapus
- * Server tetap wajib memeriksa hak akses tiap aksi.
- */
+
 class DetailLaporanActivity : AppCompatActivity() {
 
     private val role by lazy { SessionManager(this).role }
@@ -79,6 +73,7 @@ class DetailLaporanActivity : AppCompatActivity() {
             SessionManager.ROLE_PETUGAS -> {
                 findViewById<View>(R.id.btnStatus).setOnClickListener { pilihStatus(l) }
                 findViewById<View>(R.id.btnHapus).setOnClickListener { konfirmasiHapus() }
+                hubungkanTombolHubungi(l)
             }
             SessionManager.ROLE_RELAWAN -> {
                 bar.isVisible = l.status != StatusLaporan.SELESAI
@@ -92,6 +87,7 @@ class DetailLaporanActivity : AppCompatActivity() {
                     ambil.isEnabled = false
                     ambil.text = "Tugas diambil"
                 }
+                hubungkanTombolHubungi(l)
             }
             else -> {
                 // Masyarakat hanya mengelola laporannya sendiri yang masih berstatus Baru.
@@ -101,6 +97,32 @@ class DetailLaporanActivity : AppCompatActivity() {
                 }
                 findViewById<View>(R.id.btnHapus).setOnClickListener { konfirmasiHapus() }
             }
+        }
+    }
+
+    private fun hubungkanTombolHubungi(l: Laporan) {
+        // Mendukung ID btnHubungi atau btnHubungiRelawan di layout relawan/petugas.
+        val btnHubungi = findViewById<View?>(R.id.btnHubungi)
+            ?: findViewById<View?>(R.id.btnHubungiRelawan)
+
+        btnHubungi?.setOnClickListener {
+            val intent = Intent(this, HubungiRelawanActivity::class.java).apply {
+                putExtra("EXTRA_ROLE", role)
+                putExtra("EXTRA_ID_LAPORAN", l.id)
+                putExtra(
+                    "EXTRA_NAMA_RELAWAN",
+                    if (role == SessionManager.ROLE_RELAWAN) {
+                        "Posko / Tim Koordinasi"
+                    } else {
+                        "Raka • Relawan"
+                    }
+                )
+                putExtra(
+                    "EXTRA_STATUS_RELAWAN",
+                    "Laporan #${l.id} • ${l.jenis}"
+                )
+            }
+            startActivity(intent)
         }
     }
 
