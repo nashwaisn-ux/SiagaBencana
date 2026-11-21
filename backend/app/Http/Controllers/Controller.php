@@ -50,12 +50,18 @@ abstract class Controller
     protected function formatUser($user)
     {
         if (!$user) return null;
+        $fotoUrl = null;
+        if (!empty($user->foto_url)) {
+            $fotoUrl = str_starts_with($user->foto_url, 'http') ? $user->foto_url : url('storage/' . $user->foto_url);
+        }
         return [
             'id' => $user->id,
             'nama' => $user->nama,
             'email' => $user->email ?? null,
             'role' => $user->role ?? null,
             'no_hp' => $user->no_hp ?? null,
+            'alamat' => $user->alamat ?? null,
+            'foto_url' => $fotoUrl,
         ];
     }
 
@@ -93,6 +99,7 @@ abstract class Controller
         return [
             'id' => $user->id,
             'nama' => $user->nama,
+            'no_hp' => $user->no_hp ?? null,
         ];
     }
 

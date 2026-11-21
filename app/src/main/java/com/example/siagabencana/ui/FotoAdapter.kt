@@ -22,7 +22,7 @@ class FotoAdapter(
     override fun onBindViewHolder(h: VH, position: Int) {
         h.b.imgFoto.setImageURI(fotos[position])
         h.b.btnHapusFoto.setOnClickListener {
-            val pos = h.bindingAdapterPosition
+            val pos = h.adapterPosition
             if (pos != RecyclerView.NO_POSITION) onHapus(pos)
         }
     }

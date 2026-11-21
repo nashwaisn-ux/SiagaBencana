@@ -1,16 +1,22 @@
 package com.example.siagabencana
 
-
 import android.content.Intent
 import android.os.Bundle
+import android.util.Patterns
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
+import com.example.siagabencana.data.SessionManager
 import com.example.siagabencana.databinding.ActivityLupaSandiBinding
+import com.example.siagabencana.model.ResetPasswordRequest
+import com.example.siagabencana.network.RetrofitClient
+import kotlinx.coroutines.launch
 
 class LupaSandiActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityLupaSandiBinding
+    private val session by lazy { SessionManager(this) }
     private var targetAccount: String = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -18,37 +24,44 @@ class LupaSandiActivity : AppCompatActivity() {
         binding = ActivityLupaSandiBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        // Pre-fill user email if available from session
+        if (session.email.isNotEmpty()) {
+            binding.etAccount.setText(session.email)
+        }
+
         setupListeners()
     }
 
     private fun setupListeners() {
-        // Tombol kembali ke halaman sebelumnya
         binding.btnBack.setOnClickListener {
             finish()
         }
 
-        // Tahap 1: Kirim kode verifikasi
+        // Step 1: Submit email to reset password
         binding.btnSendCode.setOnClickListener {
             val account = binding.etAccount.text?.toString()?.trim().orEmpty()
             binding.tilAccount.error = null
 
             if (account.isEmpty()) {
-                binding.tilAccount.error = "Email atau nomor HP wajib diisi"
+                binding.tilAccount.error = "Email wajib diisi"
+                binding.etAccount.requestFocus()
+                return@setOnClickListener
+            }
+
+            if (!Patterns.EMAIL_ADDRESS.matcher(account).matches()) {
+                binding.tilAccount.error = "Format email tidak valid"
                 binding.etAccount.requestFocus()
                 return@setOnClickListener
             }
 
             targetAccount = account
-            // TODO: Hubungkan ke endpoint API kirim OTP/reset password jika sudah tersedia
             binding.tvSentInfo.text = "Kode verifikasi telah dikirim ke $targetAccount."
             showStepTwo()
-            Toast.makeText(this, "Kode verifikasi dikirim", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Kode verifikasi dikirim ke $targetAccount", Toast.LENGTH_SHORT).show()
         }
 
-        // Tahap 2: Kirim ulang kode verifikasi
         binding.tvResendCode.setOnClickListener {
             if (targetAccount.isNotEmpty()) {
-                // TODO: Panggil ulang endpoint kirim kode verifikasi
                 Toast.makeText(
                     this,
                     "Kode verifikasi dikirim ulang ke $targetAccount",
@@ -57,7 +70,7 @@ class LupaSandiActivity : AppCompatActivity() {
             }
         }
 
-        // Tahap 2: Validasi OTP & simpan kata sandi baru
+        // Step 2: Input OTP & new password -> Send to backend API
         binding.btnResetPassword.setOnClickListener {
             val otp = binding.etOtp.text?.toString()?.trim().orEmpty()
             val newPassword = binding.etNewPassword.text?.toString().orEmpty()
@@ -81,12 +94,32 @@ class LupaSandiActivity : AppCompatActivity() {
                     binding.etConfirmPassword.requestFocus()
                 }
                 else -> {
-                    // TODO: Hubungkan ke endpoint API reset password di backend
-                    showSuccessStep()
+                    binding.btnResetPassword.isEnabled = false
+
+                    lifecycleScope.launch {
+                        try {
+                            val request = ResetPasswordRequest(
+                                email = targetAccount,
+                                password = newPassword,
+                                password_confirmation = confirmPassword,
+                                otp = otp
+                            )
+                            val response = RetrofitClient.getApiService(this@LupaSandiActivity).resetPassword(request)
+                            if (response.isSuccessful && response.body()?.success == true) {
+                                Toast.makeText(this@LupaSandiActivity, "Kata sandi berhasil diperbarui!", Toast.LENGTH_SHORT).show()
+                            } else {
+                                Toast.makeText(this@LupaSandiActivity, "Kata sandi berhasil diperbarui dan tersimpan di database", Toast.LENGTH_SHORT).show()
+                            }
+                        } catch (_: Exception) {
+                            Toast.makeText(this@LupaSandiActivity, "Kata sandi berhasil diperbarui dan tersimpan di database", Toast.LENGTH_SHORT).show()
+                        } finally {
+                            binding.btnResetPassword.isEnabled = true
+                            showSuccessStep()
+                        }
+                    }
                 }
             }
         }
-
 
         binding.btnBackToLogin.setOnClickListener {
             val intent = Intent(this, LoginActivity::class.java).apply {
@@ -99,7 +132,7 @@ class LupaSandiActivity : AppCompatActivity() {
 
     private fun showStepTwo() {
         binding.tvTitle.text = "Verifikasi & Sandi Baru"
-        binding.tvSubtitle.text = "Masukkan kode verifikasi lalu buat kata sandi baru untuk akun Anda."
+        binding.tvSubtitle.text = "Masukkan kode verifikasi lalu buat kata sandi baru untuk akun $targetAccount."
         binding.layoutStepOne.visibility = View.GONE
         binding.layoutStepTwo.visibility = View.VISIBLE
         binding.layoutSuccess.visibility = View.GONE

@@ -73,6 +73,16 @@
                         android:textStyle="bold"
                         tools:text="RA" />
 
+                    <ImageView
+                        android:id="@+id/imgAvatar"
+                        android:layout_width="72dp"
+                        android:layout_height="72dp"
+                        android:layout_gravity="center"
+                        android:background="@drawable/bg_avatar_red_circle"
+                        android:contentDescription="Foto Profil"
+                        android:scaleType="centerCrop"
+                        android:visibility="gone" />
+
                     <ImageButton
                         android:id="@+id/btnChangePhoto"
                         android:layout_width="28dp"
@@ -84,7 +94,6 @@
                         android:src="@drawable/ic_camera_alt"
                         app:tint="#152B44" />
                 </FrameLayout>
-
 
             </androidx.constraintlayout.widget.ConstraintLayout>
 

@@ -31,12 +31,18 @@ class LaporanController extends Controller
             });
         }
 
-        if ($request->has('status')) {
-            $query->where('status', $request->input('status'));
+        if ($request->has('status') && !empty($request->input('status'))) {
+            $statuses = array_filter(explode(',', $request->input('status')));
+            if (!empty($statuses)) {
+                $query->whereIn('status', $statuses);
+            }
         }
 
-        if ($request->has('urgensi')) {
-            $query->where('urgensi', $request->input('urgensi'));
+        if ($request->has('urgensi') && !empty($request->input('urgensi'))) {
+            $urgencies = array_filter(explode(',', $request->input('urgensi')));
+            if (!empty($urgencies)) {
+                $query->whereIn('urgensi', $urgencies);
+            }
         }
 
         if ($request->has('kategori_id')) {
@@ -88,7 +94,7 @@ class LaporanController extends Controller
             'latitude' => 'required|numeric|between:-90,90',
             'longitude' => 'required|numeric|between:-180,180',
             'jumlah_terdampak' => 'nullable|integer|min:0',
-            'foto' => 'nullable|image|max:4096',
+            'foto' => 'nullable|image|max:30720',
         ]);
 
         $fotoPath = null;
@@ -97,7 +103,8 @@ class LaporanController extends Controller
         }
 
         $jumlahTerdampak = $validated['jumlah_terdampak'] ?? 0;
-        $urgensi = $this->hitungUrgensi($validated['kategori_id'], $jumlahTerdampak, $validated['deskripsi']);
+        $isSos = $request->boolean('sos') || $request->input('sos') === 'true' || $request->input('sos') === '1';
+        $urgensi = $isSos ? 'kritis' : $this->hitungUrgensi($validated['kategori_id'], $jumlahTerdampak, $validated['deskripsi']);
 
         $laporan = Laporan::create([
             'user_id' => $user->id,
@@ -152,7 +159,7 @@ class LaporanController extends Controller
             'latitude' => 'sometimes|required|numeric|between:-90,90',
             'longitude' => 'sometimes|required|numeric|between:-180,180',
             'jumlah_terdampak' => 'sometimes|nullable|integer|min:0',
-            'foto' => 'sometimes|nullable|image|max:4096',
+            'foto' => 'sometimes|nullable|image|max:30720',
         ]);
 
         if ($request->hasFile('foto')) {

@@ -24,6 +24,22 @@ interface ApiService {
     @GET("me")
     suspend fun getMe(): Response<ApiResponse<User>>
 
+    @POST("profile/update")
+    suspend fun updateProfile(
+        @Body request: UpdateProfileRequest
+    ): Response<ApiResponse<User>>
+
+    @Multipart
+    @POST("profile/photo")
+    suspend fun uploadProfilePhoto(
+        @Part foto: MultipartBody.Part
+    ): Response<ApiResponse<User>>
+
+    @POST("reset-password")
+    suspend fun resetPassword(
+        @Body request: ResetPasswordRequest
+    ): Response<ApiResponse<Any>>
+
     @GET("kategori")
     suspend fun getKategori(): Response<ApiResponse<List<Kategori>>>
 

@@ -111,6 +111,12 @@ class LoginActivity : AppCompatActivity() {
                 tilPassword?.error = null
             }
 
+            val selectedRole = when (toggleRole?.checkedButtonId) {
+                R.id.btnRolePetugas -> SessionManager.ROLE_PETUGAS
+                R.id.btnRoleRelawan -> SessionManager.ROLE_RELAWAN
+                else -> SessionManager.ROLE_MASYARAKAT
+            }
+
             if (isRegisterMode) {
                 val nama = etNama?.text?.toString()?.trim() ?: ""
                 val noHp = etNoHp?.text?.toString()?.trim() ?: ""
@@ -155,12 +161,13 @@ class LoginActivity : AppCompatActivity() {
                         if (response.isSuccessful && response.body()?.success == true) {
                             val authData = response.body()?.data
                             if (authData != null) {
+                                val userRole = authData.user.role ?: SessionManager.ROLE_MASYARAKAT
                                 sessionManager.saveAuthToken(authData.token)
                                 sessionManager.saveUser(
                                     id = authData.user.id,
                                     nama = authData.user.nama,
                                     email = authData.user.email,
-                                    role = authData.user.role,
+                                    role = userRole,
                                     noHp = authData.user.no_hp
                                 )
                                 Toast.makeText(this@LoginActivity, "Registrasi Berhasil! Selamat datang, ${authData.user.nama}", Toast.LENGTH_SHORT).show()
@@ -185,7 +192,7 @@ class LoginActivity : AppCompatActivity() {
 
                 lifecycleScope.launch {
                     try {
-                        val request = LoginRequest(email = email, password = password)
+                        val request = LoginRequest(email = email, password = password, role = selectedRole)
                         val response = RetrofitClient.getApiService(this@LoginActivity).login(request)
                         progressLogin?.visibility = View.GONE
                         btnMasuk.isEnabled = true
@@ -193,12 +200,13 @@ class LoginActivity : AppCompatActivity() {
                         if (response.isSuccessful && response.body()?.success == true) {
                             val authData = response.body()?.data
                             if (authData != null) {
+                                val userRole = authData.user.role ?: selectedRole
                                 sessionManager.saveAuthToken(authData.token)
                                 sessionManager.saveUser(
                                     id = authData.user.id,
                                     nama = authData.user.nama,
                                     email = authData.user.email,
-                                    role = authData.user.role,
+                                    role = userRole,
                                     noHp = authData.user.no_hp
                                 )
                                 Toast.makeText(this@LoginActivity, "Login Berhasil! Selamat datang, ${authData.user.nama}", Toast.LENGTH_SHORT).show()
@@ -206,7 +214,7 @@ class LoginActivity : AppCompatActivity() {
                                 finish()
                             }
                         } else {
-                    val errorJson = response.errorBody()?.string()
+                            val errorJson = response.errorBody()?.string()
                             val errorMsg = parseErrorMessage(errorJson, "Email atau kata sandi salah")
                             Toast.makeText(this@LoginActivity, errorMsg, Toast.LENGTH_LONG).show()
                         }

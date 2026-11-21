@@ -4,6 +4,7 @@ import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.graphics.Color
 import android.graphics.drawable.Drawable
+import android.location.Location
 import android.os.Bundle
 import android.view.MotionEvent
 import android.widget.ImageButton
@@ -23,11 +24,11 @@ import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.XYTileSource
-import org.osmdroid.util.BoundingBox
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.CopyrightOverlay
 import org.osmdroid.views.overlay.Marker
+import org.osmdroid.views.overlay.Polygon
 import java.io.File
 import java.io.IOException
 
@@ -40,10 +41,15 @@ class PetaSiagaActivity : AppCompatActivity() {
     private lateinit var tvTerdekatJudul: TextView
     private lateinit var tvTerdekatJarak: TextView
     private lateinit var chipGroupJenis: ChipGroup
+    private lateinit var chipGroupRadius: ChipGroup
 
     private var sosAnimator: ValueAnimator? = null
     private var isSosTriggered = false
     private var allMapPoints: List<MapPoint> = emptyList()
+
+    private var currentCenterGeo = GeoPoint(0.5070677, 101.4477930)
+    private var currentRadiusMeters = 3000.0 // Default 3 km
+    private var currentCategoryFilter: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -51,7 +57,7 @@ class PetaSiagaActivity : AppCompatActivity() {
         // Konfigurasi osmdroid
         Configuration.getInstance().apply {
             load(applicationContext, getSharedPreferences("osmdroid", MODE_PRIVATE))
-            userAgentValue = "SiagaBencana/1.0 (kontak: dev@siagabencana.app)"
+            userAgentValue = "SiagaBencana/1.0"
             osmdroidBasePath = File(cacheDir, "osmdroid")
             osmdroidTileCache = File(osmdroidBasePath, "tiles")
         }
@@ -65,10 +71,19 @@ class PetaSiagaActivity : AppCompatActivity() {
         tvTerdekatJudul = findViewById(R.id.tvTerdekatJudul)
         tvTerdekatJarak = findViewById(R.id.tvTerdekatJarak)
         chipGroupJenis = findViewById(R.id.chipGroupJenis)
+        chipGroupRadius = findViewById(R.id.chipGroupRadius)
 
         findViewById<ImageButton>(R.id.btnBack)?.setOnClickListener { finish() }
 
-        // Setup OSMDroid Map menggunakan Wikimedia tile source (Berbasis data OSM, bebas blokir 403)
+        // Tombol Zoom In & Zoom Out
+        findViewById<ImageButton>(R.id.btnZoomIn)?.setOnClickListener {
+            mapView.controller.zoomIn()
+        }
+        findViewById<ImageButton>(R.id.btnZoomOut)?.setOnClickListener {
+            mapView.controller.zoomOut()
+        }
+
+        // Setup Tile Source
         val wikimediaTileSource = XYTileSource(
             "Wikimedia",
             0, 19, 256, ".png",
@@ -77,12 +92,13 @@ class PetaSiagaActivity : AppCompatActivity() {
         )
         mapView.setTileSource(wikimediaTileSource)
         mapView.setMultiTouchControls(true)
-        mapView.controller.setZoom(13.0)
-        mapView.controller.setCenter(GeoPoint(0.5070677, 101.4477930))
+        mapView.controller.setZoom(14.0)
+        mapView.controller.setCenter(currentCenterGeo)
         mapView.overlays.add(CopyrightOverlay(this))
 
         setupSosTouchListener()
         setupCategoryFilter()
+        setupRadiusFilter()
 
         muatLaporan()
     }
@@ -90,13 +106,34 @@ class PetaSiagaActivity : AppCompatActivity() {
     private fun setupCategoryFilter() {
         chipGroupJenis.setOnCheckedStateChangeListener { _, checkedIds ->
             if (checkedIds.isEmpty()) return@setOnCheckedStateChangeListener
-            val selectedCategory = when (checkedIds.first()) {
+            currentCategoryFilter = when (checkedIds.first()) {
                 R.id.chipBanjir -> "Banjir"
                 R.id.chipKebakaran -> "Kebakaran"
                 R.id.chipLongsor -> "Longsor"
                 else -> null
             }
-            filterAndDisplayPoints(selectedCategory)
+            filterAndDisplayPoints()
+        }
+    }
+
+    private fun setupRadiusFilter() {
+        chipGroupRadius.setOnCheckedStateChangeListener { _, checkedIds ->
+            if (checkedIds.isEmpty()) return@setOnCheckedStateChangeListener
+
+            val (radiusMeters, zoomLevel, label) = when (checkedIds.first()) {
+                R.id.chip1km -> Triple(1000.0, 15.5, "1 km")
+                R.id.chip5km -> Triple(5000.0, 13.0, "5 km")
+                R.id.chip10km -> Triple(10000.0, 11.5, "10 km")
+                else -> Triple(3000.0, 14.0, "3 km") // Default 3 km
+            }
+
+            currentRadiusMeters = radiusMeters
+
+            // Smooth Zoom & Center Animation
+            mapView.controller.animateTo(currentCenterGeo, zoomLevel, 800L)
+
+            filterAndDisplayPoints()
+            Toast.makeText(this, "Zoom peta disesuaikan ke area radius $label", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -107,7 +144,7 @@ class PetaSiagaActivity : AppCompatActivity() {
                 val data = resp.body()?.data
                 if (resp.isSuccessful && data != null) {
                     allMapPoints = data
-                    filterAndDisplayPoints(null)
+                    filterAndDisplayPoints()
                 } else {
                     Toast.makeText(this@PetaSiagaActivity, "Gagal memuat peta", Toast.LENGTH_SHORT).show()
                 }
@@ -119,22 +156,39 @@ class PetaSiagaActivity : AppCompatActivity() {
         }
     }
 
-    private fun filterAndDisplayPoints(categoryFilter: String?) {
-        mapView.overlays.removeAll { it is Marker }
+    private fun filterAndDisplayPoints() {
+        // Hapus marker & polygon lama
+        mapView.overlays.removeAll { it is Marker || it is Polygon }
 
-        val filteredPoints = if (categoryFilter.isNullOrEmpty()) {
-            allMapPoints
-        } else {
-            allMapPoints.filter { it.kategori.equals(categoryFilter, ignoreCase = true) }
+        // Lingkaran Overlay Radius Area
+        val radiusPolygon = Polygon(mapView).apply {
+            points = createCirclePoints(currentCenterGeo, currentRadiusMeters)
+            fillPaint.color = Color.parseColor("#1AD32F2F")
+            outlinePaint.color = Color.parseColor("#D32F2F")
+            outlinePaint.strokeWidth = 3f
         }
+        mapView.overlays.add(0, radiusPolygon)
 
-        val titik = filteredPoints.map { GeoPoint(it.latitude, it.longitude) }
+        // Filter berdasarkan kategori & jarak radius
+        val filteredPoints = allMapPoints.filter { p ->
+            val matchesCategory = currentCategoryFilter.isNullOrEmpty() ||
+                    p.kategori.equals(currentCategoryFilter, ignoreCase = true)
+
+            val dist = FloatArray(1)
+            Location.distanceBetween(
+                currentCenterGeo.latitude, currentCenterGeo.longitude,
+                p.latitude, p.longitude, dist
+            )
+            val matchesRadius = dist[0] <= currentRadiusMeters
+
+            matchesCategory && matchesRadius
+        }
 
         filteredPoints.forEach { p ->
             val marker = Marker(mapView).apply {
                 position = GeoPoint(p.latitude, p.longitude)
                 title = p.judul
-                snippet = "${p.kategori ?: "-"} • urgensi ${p.urgensi} • ${p.status}"
+                snippet = "${p.kategori ?: "Bencana"} • Urgensi: ${p.urgensi} • Status: ${p.status}"
                 setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
                 icon = ikonUrgensi(p.urgensi)
 
@@ -148,19 +202,18 @@ class PetaSiagaActivity : AppCompatActivity() {
             mapView.overlays.add(marker)
         }
 
-        tvRingkasan.text = "${filteredPoints.size} laporan siaga"
-
-        when {
-            titik.size == 1 -> {
-                mapView.controller.setZoom(15.0)
-                mapView.controller.setCenter(titik[0])
-            }
-            titik.size > 1 -> mapView.post {
-                mapView.zoomToBoundingBox(BoundingBox.fromGeoPoints(titik), true, 120)
-            }
-        }
+        val radiusLabelInKm = (currentRadiusMeters / 1000).toInt()
+        tvRingkasan.text = "${filteredPoints.size} laporan dalam radius $radiusLabelInKm km"
 
         mapView.invalidate()
+    }
+
+    private fun createCirclePoints(center: GeoPoint, radiusInMeters: Double): ArrayList<GeoPoint> {
+        val points = ArrayList<GeoPoint>()
+        for (i in 0 until 360 step 10) {
+            points.add(center.destinationPoint(radiusInMeters, i.toDouble()))
+        }
+        return points
     }
 
     private fun ikonUrgensi(urgensi: String): Drawable {

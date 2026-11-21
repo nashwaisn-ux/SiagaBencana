@@ -12,9 +12,7 @@ class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable;
 
-    // PENTING: endpoint register TIDAK boleh menerima 'role' dari input pengguna.
-    // Set role = 'masyarakat' secara eksplisit di controller.
-    protected $fillable = ['nama', 'email', 'password', 'role', 'no_hp'];
+    protected $fillable = ['nama', 'email', 'password', 'role', 'no_hp', 'alamat', 'foto_url'];
 
     protected $hidden = ['password', 'remember_token'];
 

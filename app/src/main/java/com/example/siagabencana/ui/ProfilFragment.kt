@@ -1,15 +1,22 @@
 package com.example.siagabencana.ui
 
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import com.example.siagabencana.LoginActivity
+import com.example.siagabencana.LupaSandiActivity
 import com.example.siagabencana.R
+import com.example.siagabencana.TentangAplikasiActivity
+import com.example.siagabencana.UbahDataDiriActivity
 import com.example.siagabencana.data.SessionManager
 import com.example.siagabencana.network.RetrofitClient
 import com.google.android.material.button.MaterialButton
@@ -18,6 +25,10 @@ import kotlinx.coroutines.launch
 class ProfilFragment : Fragment() {
 
     private lateinit var sessionManager: SessionManager
+    private var tvNamaProfil: TextView? = null
+    private var tvRole: TextView? = null
+    private var tvAvatar: TextView? = null
+    private var imgAvatarProfil: ImageView? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -32,20 +43,34 @@ class ProfilFragment : Fragment() {
 
         sessionManager = SessionManager(requireContext())
 
-        val tvNamaProfil = view.findViewById<TextView>(R.id.tvNamaProfil)
-        val tvRole = view.findViewById<TextView>(R.id.tvRole)
-        val btnKeluar = view.findViewById<MaterialButton>(R.id.btnKeluar)
+        tvNamaProfil = view.findViewById(R.id.tvNamaProfil)
+        tvRole = view.findViewById(R.id.tvRole)
+        tvAvatar = view.findViewById(R.id.tvAvatar)
+        imgAvatarProfil = view.findViewById(R.id.imgAvatarProfil)
 
-        // Display user info from session
-        tvNamaProfil?.text = sessionManager.getUserName().ifEmpty { "Pengguna" }
-        val role = sessionManager.getUserRole()
-        tvRole?.text = role.replaceFirstChar { it.uppercase() }
+        val btnKeluar = view.findViewById<MaterialButton>(R.id.btnKeluar)
+        val menuUbahData = view.findViewById<LinearLayout>(R.id.menuUbahData)
+        val menuUbahSandi = view.findViewById<LinearLayout>(R.id.menuUbahSandi)
+        val menuTentang = view.findViewById<LinearLayout>(R.id.menuTentang)
+
+        updateProfileUI()
+
+        menuUbahData?.setOnClickListener {
+            startActivity(Intent(requireContext(), UbahDataDiriActivity::class.java))
+        }
+
+        menuUbahSandi?.setOnClickListener {
+            startActivity(Intent(requireContext(), LupaSandiActivity::class.java))
+        }
+
+        menuTentang?.setOnClickListener {
+            startActivity(Intent(requireContext(), TentangAplikasiActivity::class.java))
+        }
 
         btnKeluar?.setOnClickListener {
             btnKeluar.isEnabled = false
             lifecycleScope.launch {
                 try {
-                    // Call backend logout
                     RetrofitClient.getApiService(requireContext()).logout()
                 } catch (_: Exception) {
                     // Ignore network failure on logout and clear local session anyway
@@ -59,5 +84,43 @@ class ProfilFragment : Fragment() {
                 }
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        updateProfileUI()
+    }
+
+    private fun updateProfileUI() {
+        val userName = sessionManager.getUserName().ifEmpty { "Masyarakat" }
+        tvNamaProfil?.text = userName
+
+        val role = sessionManager.getUserRole()
+        tvRole?.text = role.replaceFirstChar { it.uppercase() }
+
+        val photoUrl = sessionManager.getUserFotoUrl()
+        if (!photoUrl.isNullOrEmpty()) {
+            try {
+                imgAvatarProfil?.setImageURI(Uri.parse(photoUrl))
+                imgAvatarProfil?.isVisible = true
+                tvAvatar?.isVisible = false
+            } catch (_: Exception) {
+                showInitialAvatar(userName)
+            }
+        } else {
+            showInitialAvatar(userName)
+        }
+    }
+
+    private fun showInitialAvatar(name: String) {
+        val parts = name.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
+        val initial = when {
+            parts.isEmpty() -> "SB"
+            parts.size == 1 -> parts[0].take(2).uppercase()
+            else -> "${parts.first().first()}${parts.last().first()}".uppercase()
+        }
+        tvAvatar?.text = initial
+        tvAvatar?.isVisible = true
+        imgAvatarProfil?.isVisible = false
     }
 }

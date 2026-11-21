@@ -1,6 +1,7 @@
 package com.example.siagabencana
 
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
@@ -10,28 +11,32 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.widget.ViewPager2
+import com.bumptech.glide.Glide
 import com.example.siagabencana.data.SessionManager
-import com.example.siagabencana.model.DummyData
 import com.example.siagabencana.model.Laporan
-import com.example.siagabencana.model.StatusLaporan
+import com.example.siagabencana.model.TugaskanRequest
+import com.example.siagabencana.model.UpdatePenugasanStatusRequest
+import com.example.siagabencana.model.UpdateStatusRequest
+import com.example.siagabencana.network.RetrofitClient
 import com.example.siagabencana.ui.applyUrgensi
+import com.example.siagabencana.ui.formatTanggal
+import com.example.siagabencana.ui.toStatusLaporan
+import com.example.siagabencana.ui.toUrgensi
 import com.example.siagabencana.ui.toast
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import kotlinx.coroutines.launch
 import java.util.Locale
 
-/**
- * Detail laporan dengan layout terpisah per role (desain R4 sampai R6):
- *  - activity_detail_laporan_masyarakat.xml : Edit, Hapus (laporan sendiri, status Baru)
- *  - activity_detail_laporan_relawan.xml    : Buka peta, Ambil tugas
- *  - activity_detail_laporan_petugas.xml    : Ubah status, Hapus
- * Server tetap wajib memeriksa hak akses tiap aksi.
- */
 class DetailLaporanActivity : AppCompatActivity() {
 
-    private val role by lazy { SessionManager(this).role }
+    private val session by lazy { SessionManager(this) }
+    private val role by lazy { session.role }
+    private var laporanId: Int = -1
+    private var currentLaporan: Laporan? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -43,107 +48,314 @@ class DetailLaporanActivity : AppCompatActivity() {
             }
         )
 
-        // TODO Anggota 5: ganti pencarian dummy dengan GET /api/laporan/{id}.
-        val id = intent.getIntExtra(EXTRA_ID, -1)
-        val l = DummyData.laporan.firstOrNull { it.id == id } ?: DummyData.laporan.first()
+        findViewById<View>(R.id.btnBack)?.setOnClickListener { finish() }
 
-        findViewById<TextView>(R.id.tvJudul).text = l.judul
-        findViewById<TextView>(R.id.tvDeskripsi).text = l.deskripsi
-        findViewById<TextView>(R.id.tvBadgeUrgensi).applyUrgensi(l.urgensi)
-        findViewById<TextView>(R.id.tvBadgeJenis).text = l.jenis
-        findViewById<TextView>(R.id.tvKoordinat).text = String.format(Locale.US, "%.4f, %.4f", l.lat, l.lng)
-        findViewById<TextView>(R.id.tvPelapor).text = "Dilaporkan oleh warga · ${l.waktu}"
-        findViewById<View>(R.id.btnBack).setOnClickListener { finish() }
+        laporanId = intent.getIntExtra(EXTRA_ID, -1)
+        if (laporanId == -1) {
+            toast("Laporan tidak ditemukan")
+            finish()
+            return
+        }
 
-        setupFoto()
+        loadDetail()
+    }
+
+    private fun loadDetail() {
+        lifecycleScope.launch {
+            try {
+                val resp = RetrofitClient.getApiService(this@DetailLaporanActivity).getDetailLaporan(laporanId)
+                if (resp.isSuccessful && resp.body()?.success == true) {
+                    val l = resp.body()?.data
+                    if (l != null) {
+                        currentLaporan = l
+                        bindLaporanData(l)
+                    } else {
+                        toast("Data laporan tidak ditemukan")
+                        finish()
+                    }
+                } else {
+                    toast(resp.body()?.message ?: "Gagal memuat detail laporan")
+                    finish()
+                }
+            } catch (_: Exception) {
+                toast("Tidak dapat terhubung ke server")
+                finish()
+            }
+        }
+    }
+
+    private fun bindLaporanData(l: Laporan) {
+        findViewById<TextView>(R.id.tvJudul)?.text = l.judul ?: "Bencana"
+        findViewById<TextView>(R.id.tvDeskripsi)?.text = l.deskripsi ?: "-"
+        findViewById<TextView>(R.id.tvBadgeUrgensi)?.applyUrgensi(l.urgensi.toUrgensi())
+        findViewById<TextView>(R.id.tvBadgeJenis)?.text = l.kategori?.nama ?: "Bencana"
+        findViewById<TextView>(R.id.tvKoordinat)?.text = String.format(Locale.US, "%.4f, %.4f", l.latitude, l.longitude)
+        
+        val pelaporNama = l.pelapor?.nama ?: "Warga"
+        findViewById<TextView>(R.id.tvPelapor)?.text = "Dilaporkan oleh $pelaporNama · ${formatTanggal(l.created_at)}"
+
+        setupFoto(l)
         setupAksi(l)
     }
 
-    private fun setupFoto() {
-        // Foto bukti: sementara satu placeholder. Anggota 5 mengisi dari URL foto API.
-        val jumlah = 1
+    private fun setupFoto(l: Laporan) {
+        val photos = mutableListOf<String>()
+        if (!l.foto_url.isNullOrBlank()) {
+            photos.add(l.foto_url)
+        }
+
         val tvIndex = findViewById<TextView>(R.id.tvIndexFoto)
         val pager = findViewById<ViewPager2>(R.id.vpFoto)
-        pager.adapter = PlaceholderPhotoAdapter(jumlah)
-        tvIndex.text = "1 / $jumlah foto bukti"
-        pager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
-            override fun onPageSelected(position: Int) {
-                tvIndex.text = "${position + 1} / $jumlah foto bukti"
-            }
-        })
+
+        if (photos.isEmpty()) {
+            tvIndex?.text = "0 / 0 foto bukti"
+            pager?.adapter = PhotoAdapter(emptyList())
+        } else {
+            pager?.adapter = PhotoAdapter(photos)
+            tvIndex?.text = "1 / ${photos.size} foto bukti"
+            pager?.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
+                override fun onPageSelected(position: Int) {
+                    tvIndex?.text = "${position + 1} / ${photos.size} foto bukti"
+                }
+            })
+        }
     }
 
     private fun setupAksi(l: Laporan) {
         val bar = findViewById<View>(R.id.bottomBar)
         when (role) {
             SessionManager.ROLE_PETUGAS -> {
-                findViewById<View>(R.id.btnStatus).setOnClickListener { pilihStatus(l) }
-                findViewById<View>(R.id.btnHapus).setOnClickListener { konfirmasiHapus() }
+                bar?.isVisible = true
+                findViewById<View>(R.id.btnStatus)?.setOnClickListener { pilihStatusPetugas(l) }
+                findViewById<View>(R.id.btnHapus)?.setOnClickListener { konfirmasiHapusPetugas(l) }
+                findViewById<View>(R.id.btnTugaskan)?.setOnClickListener { tugaskanRelawanDialog(l) }
             }
             SessionManager.ROLE_RELAWAN -> {
-                bar.isVisible = l.status != StatusLaporan.SELESAI
-                findViewById<View>(R.id.btnPeta).setOnClickListener {
-                    startActivity(Intent(this, PetaSiagaActivity::class.java))
+                bar?.isVisible = l.status != "selesai"
+                findViewById<View>(R.id.btnPeta)?.setOnClickListener {
+                    val intent = Intent(this, PetaSiagaActivity::class.java).apply {
+                        putExtra("EXTRA_LAT", l.latitude)
+                        putExtra("EXTRA_LNG", l.longitude)
+                    }
+                    startActivity(intent)
                 }
-                val ambil = findViewById<MaterialButton>(R.id.btnAmbil)
-                ambil.setOnClickListener {
-                    // TODO Anggota 5: PATCH /api/laporan/{id}/ambil
-                    toast("Tugas diambil (demo)")
-                    ambil.isEnabled = false
-                    ambil.text = "Tugas diambil"
+                val btnAmbil = findViewById<MaterialButton>(R.id.btnAmbil)
+                val myPenugasan = l.penugasan?.firstOrNull { it.relawan?.id == session.getUserId() }
+                
+                if (myPenugasan != null) {
+                    if (myPenugasan.status_tugas == "ditugaskan") {
+                        btnAmbil?.text = "Terima Tugas"
+                        btnAmbil?.setOnClickListener { terimaTugasRelawan(myPenugasan.id) }
+                    } else if (myPenugasan.status_tugas == "diterima") {
+                        btnAmbil?.text = "Selesaikan Tugas"
+                        btnAmbil?.setOnClickListener { selesaikanTugasRelawan(myPenugasan.id) }
+                    } else {
+                        btnAmbil?.text = "Tugas Selesai"
+                        btnAmbil?.isEnabled = false
+                    }
+                } else {
+                    btnAmbil?.text = "Bukan Tugas Anda"
+                    btnAmbil?.isEnabled = false
                 }
             }
             else -> {
-                // Masyarakat hanya mengelola laporannya sendiri yang masih berstatus Baru.
-                bar.isVisible = l.milikSaya && l.status == StatusLaporan.BARU
-                findViewById<View>(R.id.btnEdit).setOnClickListener {
-                    startActivity(Intent(this, BuatLaporanActivity::class.java))
+                // Masyarakat: hanya mengelola miliknya jika berstatus 'baru'
+                val isMyReport = l.pelapor?.id == session.getUserId()
+                val isBaru = l.status == "baru" || l.status == "BARU"
+                bar?.isVisible = isMyReport && isBaru
+
+                findViewById<View>(R.id.btnEdit)?.setOnClickListener {
+                    val intent = Intent(this, BuatLaporanActivity::class.java).apply {
+                        putExtra(EXTRA_ID, l.id)
+                    }
+                    startActivity(intent)
                 }
-                findViewById<View>(R.id.btnHapus).setOnClickListener { konfirmasiHapus() }
+                findViewById<View>(R.id.btnHapus)?.setOnClickListener { konfirmasiHapusMasyarakat(l) }
             }
         }
     }
 
-    private fun pilihStatus(l: Laporan) {
-        val label = arrayOf("Baru", "Diproses", "Selesai")
+    private fun pilihStatusPetugas(l: Laporan) {
+        val options = arrayOf("baru", "diverifikasi", "ditangani", "selesai")
+        val labels = arrayOf("Baru", "Diverifikasi", "Ditangani", "Selesai")
+        val currentIdx = options.indexOf(l.status?.lowercase() ?: "baru").coerceAtLeast(0)
+
         MaterialAlertDialogBuilder(this)
             .setTitle("Ubah status laporan")
-            .setSingleChoiceItems(label, l.status.ordinal, null)
+            .setSingleChoiceItems(labels, currentIdx, null)
             .setNegativeButton("Batal", null)
-            .setPositiveButton("Simpan") { d, _ ->
-                val pilih = (d as AlertDialog).listView.checkedItemPosition
-                // TODO Anggota 5: PATCH /api/laporan/{id} body status
-                toast("Status diubah menjadi ${label[pilih]} (demo)")
+            .setPositiveButton("Simpan") { dialog, _ ->
+                val selected = (dialog as AlertDialog).listView.checkedItemPosition
+                val newStatus = options[selected]
+                updateStatusApi(newStatus)
             }
             .show()
     }
 
-    private fun konfirmasiHapus() {
+    private fun updateStatusApi(status: String) {
+        lifecycleScope.launch {
+            try {
+                val req = UpdateStatusRequest(status = status)
+                val resp = RetrofitClient.getApiService(this@DetailLaporanActivity).updateStatusLaporan(laporanId, req)
+                if (resp.isSuccessful && resp.body()?.success == true) {
+                    toast("Status berhasil diubah menjadi $status")
+                    setResult(RESULT_OK)
+                    loadDetail()
+                } else {
+                    toast("Gagal mengubah status")
+                }
+            } catch (_: Exception) {
+                toast("Gagal terhubung ke server")
+            }
+        }
+    }
+
+    private fun konfirmasiHapusPetugas(l: Laporan) {
         MaterialAlertDialogBuilder(this)
             .setTitle("Hapus laporan ini?")
-            .setMessage("Laporan dan foto buktinya akan dihapus permanen.")
+            .setMessage("Laporan akan dihapus permanen dari sistem.")
             .setNegativeButton("Batal", null)
             .setPositiveButton("Hapus") { _, _ ->
-                // TODO Anggota 5: DELETE /api/laporan/{id}
-                toast("Laporan dihapus (demo)")
-                finish()
+                deleteLaporanApi()
             }
             .show()
     }
 
-    private class PlaceholderPhotoAdapter(private val count: Int) :
+    private fun konfirmasiHapusMasyarakat(l: Laporan) {
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Hapus laporan Anda?")
+            .setMessage("Laporan Anda akan dihapus permanen.")
+            .setNegativeButton("Batal", null)
+            .setPositiveButton("Hapus") { _, _ ->
+                deleteLaporanApi()
+            }
+            .show()
+    }
+
+    private fun deleteLaporanApi() {
+        lifecycleScope.launch {
+            try {
+                val resp = RetrofitClient.getApiService(this@DetailLaporanActivity).deleteLaporan(laporanId)
+                if (resp.isSuccessful && resp.body()?.success == true) {
+                    toast("Laporan berhasil dihapus")
+                    setResult(RESULT_OK)
+                    finish()
+                } else {
+                    toast("Gagal menghapus laporan")
+                }
+            } catch (_: Exception) {
+                toast("Gagal terhubung ke server")
+            }
+        }
+    }
+
+    private fun tugaskanRelawanDialog(l: Laporan) {
+        lifecycleScope.launch {
+            try {
+                val resp = RetrofitClient.getApiService(this@DetailLaporanActivity).getRelawan()
+                if (resp.isSuccessful && resp.body()?.success == true) {
+                    val relawans = resp.body()?.data.orEmpty()
+                    if (relawans.isEmpty()) {
+                        toast("Belum ada relawan terdaftar")
+                        return@launch
+                    }
+
+                    val names = relawans.map { "${it.nama} (Tugas aktif: ${it.tugas_aktif})" }.toTypedArray()
+                    MaterialAlertDialogBuilder(this@DetailLaporanActivity)
+                        .setTitle("Tugaskan Relawan")
+                        .setItems(names) { _, which ->
+                            val selectedRelawan = relawans[which]
+                            submitPenugasan(selectedRelawan.id)
+                        }
+                        .setNegativeButton("Batal", null)
+                        .show()
+                } else {
+                    toast("Gagal memuat daftar relawan")
+                }
+            } catch (_: Exception) {
+                toast("Gagal terhubung ke server")
+            }
+        }
+    }
+
+    private fun submitPenugasan(relawanId: Int) {
+        lifecycleScope.launch {
+            try {
+                val req = TugaskanRequest(relawan_id = relawanId, catatan = "Penugasan lapangan")
+                val resp = RetrofitClient.getApiService(this@DetailLaporanActivity).tugaskanRelawan(laporanId, req)
+                if (resp.isSuccessful && resp.body()?.success == true) {
+                    toast("Relawan berhasil ditugaskan")
+                    setResult(RESULT_OK)
+                    loadDetail()
+                } else {
+                    toast(resp.body()?.message ?: "Gagal menugaskan relawan")
+                }
+            } catch (_: Exception) {
+                toast("Gagal terhubung ke server")
+            }
+        }
+    }
+
+    private fun terimaTugasRelawan(penugasanId: Int) {
+        lifecycleScope.launch {
+            try {
+                val req = UpdatePenugasanStatusRequest(status_tugas = "diterima")
+                val resp = RetrofitClient.getApiService(this@DetailLaporanActivity).updateStatusPenugasan(penugasanId, req)
+                if (resp.isSuccessful && resp.body()?.success == true) {
+                    toast("Tugas diterima")
+                    // Otomatis ubah status laporan ke ditangani
+                    updateStatusApi("ditangani")
+                } else {
+                    toast("Gagal menerima tugas")
+                }
+            } catch (_: Exception) {
+                toast("Gagal terhubung ke server")
+            }
+        }
+    }
+
+    private fun selesaikanTugasRelawan(penugasanId: Int) {
+        lifecycleScope.launch {
+            try {
+                val req = UpdatePenugasanStatusRequest(status_tugas = "selesai")
+                val resp = RetrofitClient.getApiService(this@DetailLaporanActivity).updateStatusPenugasan(penugasanId, req)
+                if (resp.isSuccessful && resp.body()?.success == true) {
+                    toast("Tugas selesai")
+                    updateStatusApi("selesai")
+                } else {
+                    toast("Gagal menyelesaikan tugas")
+                }
+            } catch (_: Exception) {
+                toast("Gagal terhubung ke server")
+            }
+        }
+    }
+
+    private class PhotoAdapter(private val photos: List<String>) :
         RecyclerView.Adapter<RecyclerView.ViewHolder>() {
-        override fun getItemCount() = count
+
+        override fun getItemCount() = if (photos.isEmpty()) 1 else photos.size
+
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
             val img = ImageView(parent.context).apply {
                 layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
                 scaleType = ImageView.ScaleType.CENTER_CROP
                 setBackgroundColor(ContextCompat.getColor(parent.context, R.color.siaga_thumb))
-                contentDescription = "Foto bukti laporan"
             }
             return object : RecyclerView.ViewHolder(img) {}
         }
-        override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) = Unit
+
+        override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+            val img = holder.itemView as ImageView
+            if (photos.isNotEmpty()) {
+                Glide.with(img.context)
+                    .load(photos[position])
+                    .placeholder(R.color.siaga_thumb)
+                    .into(img)
+            } else {
+                img.setImageResource(R.drawable.bg_card)
+            }
+        }
     }
 
     companion object {

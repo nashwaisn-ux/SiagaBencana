@@ -22,23 +22,37 @@
             android:paddingTop="62dp"
             android:paddingBottom="32dp">
 
-            <TextView
-                android:id="@+id/tvAvatar"
+            <FrameLayout
                 android:layout_width="84dp"
-                android:layout_height="84dp"
-                android:background="@drawable/bg_circle_red"
-                android:gravity="center"
-                android:text="RA"
-                android:textColor="@color/white"
-                android:textSize="30sp"
-                android:textStyle="bold" />
+                android:layout_height="84dp">
+
+                <TextView
+                    android:id="@+id/tvAvatar"
+                    android:layout_width="84dp"
+                    android:layout_height="84dp"
+                    android:background="@drawable/bg_circle_red"
+                    android:gravity="center"
+                    android:text="SB"
+                    android:textColor="@color/white"
+                    android:textSize="30sp"
+                    android:textStyle="bold" />
+
+                <ImageView
+                    android:id="@+id/imgAvatarProfil"
+                    android:layout_width="84dp"
+                    android:layout_height="84dp"
+                    android:background="@drawable/bg_circle_red"
+                    android:contentDescription="Foto Profil"
+                    android:scaleType="centerCrop"
+                    android:visibility="gone" />
+            </FrameLayout>
 
             <TextView
                 android:id="@+id/tvNamaProfil"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
-                android:text="Rina Anggraini"
+                android:text="Masyarakat"
                 android:textColor="@color/white"
                 android:textSize="20sp"
                 android:textStyle="bold" />
@@ -128,6 +142,23 @@
 
                     <ImageView android:layout_width="22dp" android:layout_height="22dp" android:importantForAccessibility="no" android:src="@drawable/ic_person" app:tint="@color/siaga_text_secondary" />
                     <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="12dp" android:layout_weight="1" android:text="Ubah data diri" android:textColor="@color/siaga_text" android:textSize="14sp" android:textStyle="bold" />
+                    <ImageView android:layout_width="18dp" android:layout_height="18dp" android:importantForAccessibility="no" android:src="@drawable/ic_chevron_right" app:tint="@color/siaga_text_tertiary" />
+                </LinearLayout>
+
+                <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/siaga_line" />
+
+                <LinearLayout
+                    android:id="@+id/menuUbahSandi"
+                    android:layout_width="match_parent"
+                    android:layout_height="56dp"
+                    android:background="?attr/selectableItemBackground"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <ImageView android:layout_width="22dp" android:layout_height="22dp" android:importantForAccessibility="no" android:src="@drawable/ic_lock_reset" app:tint="@color/siaga_text_secondary" />
+                    <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="12dp" android:layout_weight="1" android:text="Ubah kata sandi" android:textColor="@color/siaga_text" android:textSize="14sp" android:textStyle="bold" />
                     <ImageView android:layout_width="18dp" android:layout_height="18dp" android:importantForAccessibility="no" android:src="@drawable/ic_chevron_right" app:tint="@color/siaga_text_tertiary" />
                 </LinearLayout>
 
