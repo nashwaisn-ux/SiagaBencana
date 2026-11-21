@@ -43,8 +43,7 @@ class ProfilFragment : Fragment() {
 
     private fun logoutToLogin() {
         val session = SessionManager(requireContext())
-        // Jika SessionManager punya method clearSession() atau clear(), panggil di sini;
-        // jika belum ada, menimpa sesi kosong juga bisa dilakukan sesuai struktur SessionManager Anda.
+
         session.save(
             token = "",
             role = "",
