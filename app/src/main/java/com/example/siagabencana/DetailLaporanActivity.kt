@@ -1,5 +1,6 @@
 package com.example.siagabencana
 
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
@@ -12,7 +13,6 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.widget.ViewPager2
-import com.example.siagabencana.data.SessionManager
 import com.example.siagabencana.model.DummyData
 import com.example.siagabencana.model.Laporan
 import com.example.siagabencana.model.StatusLaporan
@@ -22,17 +22,16 @@ import com.google.android.material.button.MaterialButton
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import java.util.Locale
 
-
 class DetailLaporanActivity : AppCompatActivity() {
 
-    private val role by lazy { SessionManager(this).role }
+    private val currentRole: String by lazy { bacaRoleAktif() }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(
-            when (role) {
-                SessionManager.ROLE_PETUGAS -> R.layout.activity_detail_laporan_petugas
-                SessionManager.ROLE_RELAWAN -> R.layout.activity_detail_laporan_relawan
+            when (currentRole) {
+                ROLE_PETUGAS -> R.layout.activity_detail_laporan_petugas
+                ROLE_RELAWAN -> R.layout.activity_detail_laporan_relawan
                 else -> R.layout.activity_detail_laporan_masyarakat
             }
         )
@@ -53,6 +52,19 @@ class DetailLaporanActivity : AppCompatActivity() {
         setupAksi(l)
     }
 
+    private fun bacaRoleAktif(): String {
+        // Sesuaikan jika di SessionManager.kt sudah ada properti/method role yang pasti.
+        val prefs = getSharedPreferences("siaga_session", Context.MODE_PRIVATE)
+        val rawRole = prefs.getString("role", "")
+            ?: prefs.getString("user_role", "")
+            ?: ""
+        return when (rawRole.trim().lowercase(Locale.ROOT)) {
+            "petugas", "role_petugas" -> ROLE_PETUGAS
+            "relawan", "role_relawan" -> ROLE_RELAWAN
+            else -> ROLE_MASYARAKAT
+        }
+    }
+
     private fun setupFoto() {
         // Foto bukti: sementara satu placeholder. Anggota 5 mengisi dari URL foto API.
         val jumlah = 1
@@ -69,13 +81,13 @@ class DetailLaporanActivity : AppCompatActivity() {
 
     private fun setupAksi(l: Laporan) {
         val bar = findViewById<View>(R.id.bottomBar)
-        when (role) {
-            SessionManager.ROLE_PETUGAS -> {
+        when (currentRole) {
+            ROLE_PETUGAS -> {
                 findViewById<View>(R.id.btnStatus).setOnClickListener { pilihStatus(l) }
                 findViewById<View>(R.id.btnHapus).setOnClickListener { konfirmasiHapus() }
-                hubungkanTombolHubungi(l)
+                hubungkanTombolHubungiJikaAda(l)
             }
-            SessionManager.ROLE_RELAWAN -> {
+            ROLE_RELAWAN -> {
                 bar.isVisible = l.status != StatusLaporan.SELESAI
                 findViewById<View>(R.id.btnPeta).setOnClickListener {
                     startActivity(Intent(this, PetaSiagaActivity::class.java))
@@ -87,7 +99,7 @@ class DetailLaporanActivity : AppCompatActivity() {
                     ambil.isEnabled = false
                     ambil.text = "Tugas diambil"
                 }
-                hubungkanTombolHubungi(l)
+                hubungkanTombolHubungiJikaAda(l)
             }
             else -> {
                 // Masyarakat hanya mengelola laporannya sendiri yang masih berstatus Baru.
@@ -100,18 +112,23 @@ class DetailLaporanActivity : AppCompatActivity() {
         }
     }
 
-    private fun hubungkanTombolHubungi(l: Laporan) {
-        // Mendukung ID btnHubungi atau btnHubungiRelawan di layout relawan/petugas.
-        val btnHubungi = findViewById<View?>(R.id.btnHubungi)
-            ?: findViewById<View?>(R.id.btnHubungiRelawan)
+    private fun hubungkanTombolHubungiJikaAda(l: Laporan) {
+        // Cari ID tombol hubungi secara dinamis agar aman walau ID di XML berbeda atau belum dibuat.
+        val candidateIds = listOf("btnHubungi", "btnHubungiRelawan", "btnChat", "btnHubungiTim")
+        val tombol = candidateIds
+            .mapNotNull { namaId ->
+                val resId = resources.getIdentifier(namaId, "id", packageName)
+                if (resId != 0) findViewById<View?>(resId) else null
+            }
+            .firstOrNull()
 
-        btnHubungi?.setOnClickListener {
+        tombol?.setOnClickListener {
             val intent = Intent(this, HubungiRelawanActivity::class.java).apply {
-                putExtra("EXTRA_ROLE", role)
+                putExtra("EXTRA_ROLE", currentRole)
                 putExtra("EXTRA_ID_LAPORAN", l.id)
                 putExtra(
                     "EXTRA_NAMA_RELAWAN",
-                    if (role == SessionManager.ROLE_RELAWAN) {
+                    if (currentRole == ROLE_RELAWAN) {
                         "Posko / Tim Koordinasi"
                     } else {
                         "Raka • Relawan"
@@ -170,5 +187,8 @@ class DetailLaporanActivity : AppCompatActivity() {
 
     companion object {
         const val EXTRA_ID = "laporan_id"
+        const val ROLE_PETUGAS = "petugas"
+        const val ROLE_RELAWAN = "relawan"
+        const val ROLE_MASYARAKAT = "masyarakat"
     }
 }

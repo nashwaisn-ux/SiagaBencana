@@ -1,10 +1,10 @@
 package com.example.siagabencana
 
+import android.content.Context
 import android.os.Bundle
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.example.siagabencana.data.SessionManager
 import com.example.siagabencana.databinding.ActivityHubungiRelawanBinding
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -34,14 +34,27 @@ class HubungiRelawanActivity : AppCompatActivity() {
         muatPesanAwal()
     }
 
+    private fun bacaRoleAktif(): String {
+        val prefs = getSharedPreferences("siaga_session", Context.MODE_PRIVATE)
+        val rawRole = prefs.getString("role", "")
+            ?: prefs.getString("user_role", "")
+            ?: ""
+        return when (rawRole.trim().lowercase(Locale.ROOT)) {
+            "petugas", "role_petugas" -> ROLE_PETUGAS
+            "relawan", "role_relawan" -> ROLE_RELAWAN
+            else -> ""
+        }
+    }
+
     private fun ambilDataIntent() {
         rolePengguna = intent.getStringExtra("EXTRA_ROLE")
-            ?: SessionManager(this).role.orEmpty()
+            ?.takeIf { it.isNotBlank() }
+            ?: bacaRoleAktif()
         idLaporan = intent.getIntExtra("EXTRA_ID_LAPORAN", -1)
 
-        labelPengirimSaya = when (rolePengguna) {
-            SessionManager.ROLE_PETUGAS -> "Petugas"
-            SessionManager.ROLE_RELAWAN -> "Relawan"
+        labelPengirimSaya = when (rolePengguna.lowercase(Locale.ROOT)) {
+            ROLE_PETUGAS -> "Petugas"
+            ROLE_RELAWAN -> "Relawan"
             else -> "Saya"
         }
 
@@ -158,5 +171,10 @@ class HubungiRelawanActivity : AppCompatActivity() {
         if (daftarPesan.isNotEmpty()) {
             binding.rvChat.scrollToPosition(daftarPesan.size - 1)
         }
+    }
+
+    companion object {
+        private const val ROLE_PETUGAS = "petugas"
+        private const val ROLE_RELAWAN = "relawan"
     }
 }

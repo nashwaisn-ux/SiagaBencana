@@ -78,6 +78,11 @@
             android:windowSoftInputMode="adjustResize" />
 
 
+        <activity
+            android:name=".RegistrasiRelawanActivity"
+            android:exported="false" />
+
+
 
     </application>
 

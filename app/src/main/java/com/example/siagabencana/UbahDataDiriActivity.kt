@@ -1,5 +1,6 @@
 package com.example.siagabencana
 
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -10,13 +11,11 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isVisible
 import androidx.core.widget.doAfterTextChanged
-import com.example.siagabencana.data.SessionManager
 import com.example.siagabencana.databinding.ActivityUbahDataDiriBinding
 
 class UbahDataDiriActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityUbahDataDiriBinding
-    private val session by lazy { SessionManager(this) }
     private var selectedPhotoUri: Uri? = null
 
     private val pickMediaLauncher =
@@ -36,9 +35,21 @@ class UbahDataDiriActivity : AppCompatActivity() {
         setupListeners()
     }
 
+    private fun prefs() = getSharedPreferences("siaga_session", Context.MODE_PRIVATE)
+
     private fun loadUserData() {
-        val currentName = session.nama?.takeIf { it.isNotBlank() } ?: "Rina Anggraini"
+        val sp = prefs()
+        val currentName = sp.getString("nama", "")?.trim()?.takeIf { it.isNotEmpty() }
+            ?: "Rina Anggraini"
+        val currentEmail = sp.getString("email", "").orEmpty()
+        val currentPhone = sp.getString("phone", "").orEmpty()
+        val currentAddress = sp.getString("address", "").orEmpty()
+
         binding.etFullName.setText(currentName)
+        if (currentEmail.isNotEmpty()) binding.etEmail.setText(currentEmail)
+        if (currentPhone.isNotEmpty()) binding.etPhone.setText(currentPhone)
+        if (currentAddress.isNotEmpty()) binding.etAddress.setText(currentAddress)
+
         updateAvatarInitial(currentName)
     }
 
@@ -81,14 +92,20 @@ class UbahDataDiriActivity : AppCompatActivity() {
                     binding.etPhone.requestFocus()
                 }
                 else -> {
-                    val token = session.token?.ifBlank { "demo-token" } ?: "demo-token"
-                    val role = session.role?.ifBlank { SessionManager.ROLE_MASYARAKAT }
-                        ?: SessionManager.ROLE_MASYARAKAT
-                    session.save(
-                        token = token,
-                        role = role,
-                        nama = fullName
-                    )
+                    val sp = prefs()
+                    val token = sp.getString("token", "")?.trim()?.takeIf { it.isNotEmpty() }
+                        ?: "demo-token"
+                    val role = sp.getString("role", "")?.trim()?.takeIf { it.isNotEmpty() }
+                        ?: ROLE_MASYARAKAT
+
+                    sp.edit()
+                        .putString("token", token)
+                        .putString("role", role)
+                        .putString("nama", fullName)
+                        .putString("email", email)
+                        .putString("phone", phone)
+                        .putString("address", address)
+                        .apply()
 
                     Toast.makeText(this, "Data diri berhasil disimpan", Toast.LENGTH_SHORT).show()
                     setResult(
@@ -115,5 +132,9 @@ class UbahDataDiriActivity : AppCompatActivity() {
         }
         binding.tvAvatarInitial.text = initial
         binding.tvAvatarInitial.isVisible = selectedPhotoUri == null
+    }
+
+    companion object {
+        private const val ROLE_MASYARAKAT = "masyarakat"
     }
 }

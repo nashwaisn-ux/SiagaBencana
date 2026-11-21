@@ -1,35 +1,37 @@
 package com.example.siagabencana
 
+import android.content.Context
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
 import androidx.annotation.IdRes
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
-import androidx.fragment.app.commit
-import com.example.siagabencana.data.SessionManager
 import com.example.siagabencana.databinding.ActivityMainBinding
 import com.example.siagabencana.ui.DashboardFragment
+import com.example.siagabencana.ui.FragmenRelawanPetugas
 import com.example.siagabencana.ui.LaporanFragment
 import com.example.siagabencana.ui.ProfilFragment
+import com.example.siagabencana.ui.RelawanFragment
 import com.example.siagabencana.ui.StaticFragment
 import com.example.siagabencana.ui.toast
+import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var b: ActivityMainBinding
-    private val session by lazy { SessionManager(this) }
+    private lateinit var activeRole: String
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         b = ActivityMainBinding.inflate(layoutInflater)
         setContentView(b.root)
 
-        val currentRole = session.role
-        setupBottomNavigation(currentRole)
+        activeRole = bacaRoleAktif()
+        setupBottomNavigation(activeRole)
 
         if (savedInstanceState == null) {
-            toast("Masuk sebagai ${currentRole.replaceFirstChar { it.uppercase() }}")
+            toast("Masuk sebagai ${activeRole.replaceFirstChar { it.uppercase() }}")
             val targetId = if (b.bottomNav.menu.hasItemId(R.id.nav_beranda)) {
                 R.id.nav_beranda
             } else {
@@ -41,10 +43,22 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun bacaRoleAktif(): String {
+        val prefs = getSharedPreferences("siaga_session", Context.MODE_PRIVATE)
+        val rawRole = prefs.getString("role", "")
+            ?: prefs.getString("user_role", "")
+            ?: ""
+        return when (rawRole.trim().lowercase(Locale.ROOT)) {
+            "petugas", "role_petugas" -> ROLE_PETUGAS
+            "relawan", "role_relawan" -> ROLE_RELAWAN
+            else -> ROLE_MASYARAKAT
+        }
+    }
+
     private fun setupBottomNavigation(role: String) {
         val menuRes = when (role) {
-            SessionManager.ROLE_PETUGAS -> R.menu.bottom_nav_petugas
-            SessionManager.ROLE_RELAWAN -> R.menu.bottom_nav_relawan
+            ROLE_PETUGAS -> R.menu.bottom_nav_petugas
+            ROLE_RELAWAN -> R.menu.bottom_nav_relawan
             else -> R.menu.bottom_nav_masyarakat
         }
 
@@ -71,15 +85,20 @@ class MainActivity : AppCompatActivity() {
         val fragment: Fragment = when (menuId) {
             R.id.nav_beranda -> DashboardFragment()
             R.id.nav_laporan -> LaporanFragment()
-            R.id.nav_relawan -> StaticFragment.of(R.layout.fragment_relawan)
+            R.id.nav_relawan -> if (activeRole == ROLE_PETUGAS) {
+                FragmenRelawanPetugas()
+            } else {
+                RelawanFragment()
+            }
             R.id.nav_riwayat -> StaticFragment.of(R.layout.fragment_riwayat)
             else -> ProfilFragment()
         }
 
-        supportFragmentManager.commit {
-            setReorderingAllowed(true)
-            replace(R.id.fragment_container, fragment)
-        }
+        supportFragmentManager
+            .beginTransaction()
+            .setReorderingAllowed(true)
+            .replace(R.id.fragment_container, fragment)
+            .commit()
         return true
     }
 
@@ -91,5 +110,11 @@ class MainActivity : AppCompatActivity() {
             if (item.isVisible) return item
         }
         return if (size() > 0) getItem(0) else null
+    }
+
+    companion object {
+        private const val ROLE_PETUGAS = "petugas"
+        private const val ROLE_RELAWAN = "relawan"
+        private const val ROLE_MASYARAKAT = "masyarakat"
     }
 }
