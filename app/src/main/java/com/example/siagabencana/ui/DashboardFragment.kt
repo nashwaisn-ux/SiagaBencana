@@ -31,6 +31,13 @@ class DashboardFragment : Fragment() {
     private val terbaruList = mutableListOf<Laporan>()
     private lateinit var laporanAdapter: TerbaruAdapter
 
+    private var tvStatBaru: TextView? = null
+    private var tvStatProses: TextView? = null
+    private var tvStatSelesai: TextView? = null
+    private var tvStatRelawan: TextView? = null
+    private var tvBannerJudul: TextView? = null
+    private var tvBannerDesc: TextView? = null
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -51,10 +58,13 @@ class DashboardFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         val tvNama = view.findViewById<TextView>(R.id.tvNama)
-        val tvStatBaru = view.findViewById<TextView>(R.id.tvStatBaru)
-        val tvStatProses = view.findViewById<TextView>(R.id.tvStatProses)
-        val tvStatSelesai = view.findViewById<TextView>(R.id.tvStatSelesai)
-        val tvStatRelawan = view.findViewById<TextView>(R.id.tvStatRelawan)
+        tvStatBaru = view.findViewById(R.id.tvStatBaru)
+        tvStatProses = view.findViewById(R.id.tvStatProses)
+        tvStatSelesai = view.findViewById(R.id.tvStatSelesai)
+        tvStatRelawan = view.findViewById(R.id.tvStatRelawan)
+        tvBannerJudul = view.findViewById(R.id.tvBannerJudul)
+        tvBannerDesc = view.findViewById(R.id.tvBannerDesc)
+
         val rvTerbaru = view.findViewById<RecyclerView>(R.id.rvTerbaru)
 
         tvNama?.text = sessionManager.getUserName().ifEmpty { "Pengguna" }
@@ -101,31 +111,48 @@ class DashboardFragment : Fragment() {
             (activity as? MainActivity)?.navigateTo(R.id.nav_laporan)
         }
 
-        loadDashboardStats(tvStatBaru, tvStatProses, tvStatSelesai, tvStatRelawan)
+        loadDashboardStats()
     }
 
-    private fun loadDashboardStats(
-        tvStatBaru: TextView?,
-        tvStatProses: TextView?,
-        tvStatSelesai: TextView?,
-        tvStatRelawan: TextView?
-    ) {
-        lifecycleScope.launch {
+    override fun onResume() {
+        super.onResume()
+        loadDashboardStats()
+    }
+
+    private fun loadDashboardStats() {
+        viewLifecycleOwner.lifecycleScope.launch {
             try {
                 val response = RetrofitClient.getApiService(requireContext()).getDashboard()
                 if (response.isSuccessful && response.body()?.success == true) {
                     val data = response.body()?.data
                     if (data != null) {
+                        val role = sessionManager.getUserRole()
                         val statusMap = data.per_status
                         val baruCount = statusMap["baru"] ?: 0
                         val diverifikasiCount = statusMap["diverifikasi"] ?: 0
                         val ditanganiCount = statusMap["ditangani"] ?: 0
                         val selesaiCount = statusMap["selesai"] ?: 0
 
-                        tvStatBaru?.text = baruCount.toString()
-                        tvStatProses?.text = (diverifikasiCount + ditanganiCount).toString()
-                        tvStatSelesai?.text = selesaiCount.toString()
-                        tvStatRelawan?.text = (data.tugas_aktif ?: 24).toString()
+                        if (role == SessionManager.ROLE_RELAWAN) {
+                            tvStatBaru?.text = (baruCount + diverifikasiCount).toString()
+                            tvStatProses?.text = ditanganiCount.toString()
+                            tvStatSelesai?.text = selesaiCount.toString()
+                            tvStatRelawan?.text = (data.tugas_aktif ?: 0).toString()
+                        } else {
+                            tvStatBaru?.text = baruCount.toString()
+                            tvStatProses?.text = (diverifikasiCount + ditanganiCount).toString()
+                            tvStatSelesai?.text = selesaiCount.toString()
+                            tvStatRelawan?.text = (data.relawan_total ?: 0).toString()
+                        }
+
+                        val kritisCount = data.per_urgensi["kritis"] ?: 0
+                        if (kritisCount > 0) {
+                            tvBannerJudul?.text = "Siaga Bencana Kritis"
+                            tvBannerDesc?.text = "$kritisCount laporan kritis memerlukan penanganan segera. Buka peta siaga."
+                        } else {
+                            tvBannerJudul?.text = "Kondisi Wilayah Aman"
+                            tvBannerDesc?.text = "Tidak ada laporan berstatus kritis saat ini."
+                        }
 
                         terbaruList.clear()
                         terbaruList.addAll(data.laporan_terbaru)
@@ -133,7 +160,7 @@ class DashboardFragment : Fragment() {
                     }
                 }
             } catch (_: Exception) {
-                // Keep placeholder stats on network failure
+                // Keep UI values intact on network failure
             }
         }
     }
@@ -154,13 +181,10 @@ class DashboardFragment : Fragment() {
 
         override fun onBindViewHolder(holder: VH, position: Int) {
             val l = list[position]
-            holder.b.tvJudul.text = l.judul
+            holder.b.tvJudul.text = l.judul ?: "Bencana"
             val katName = l.kategori?.nama ?: "Bencana"
-            holder.b.tvMeta.text = "$katName · ${l.created_at ?: "Baru saja"}"
-            val urgStr = (l.urgensi ?: "sedang").replaceFirstChar {
-                if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString()
-            }
-            holder.b.tvBadge.text = urgStr
+            holder.b.tvMeta.text = "$katName · ${formatTanggal(l.created_at)}"
+            holder.b.tvBadge.applyBadge(l)
             holder.b.root.setOnClickListener { onClick(l) }
         }
     }

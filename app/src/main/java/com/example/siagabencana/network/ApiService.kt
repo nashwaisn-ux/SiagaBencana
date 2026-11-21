@@ -72,7 +72,8 @@ interface ApiService {
         @Part("latitude") latitude: RequestBody,
         @Part("longitude") longitude: RequestBody,
         @Part("jumlah_terdampak") jumlahTerdampak: RequestBody,
-        @Part foto: MultipartBody.Part? = null
+        @Part foto: MultipartBody.Part? = null,
+        @Part("sos") sos: RequestBody? = null
     ): Response<ApiResponse<Laporan>>
 
     @Multipart

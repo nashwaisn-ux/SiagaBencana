@@ -16,9 +16,12 @@ import com.example.siagabencana.R
 import com.example.siagabencana.databinding.FragmentLaporanBinding
 import com.example.siagabencana.databinding.ItemLaporanBinding
 import com.example.siagabencana.model.Laporan
+import com.example.siagabencana.network.ApiResult
 import com.example.siagabencana.network.RetrofitClient
+import com.example.siagabencana.network.apiCall
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.util.Locale
 
 class LaporanFragment : Fragment() {
 
@@ -30,6 +33,11 @@ class LaporanFragment : Fragment() {
     private var currentSearch: String? = null
     private var currentStatus: String? = null
     private var currentUrgensi: String? = null
+
+    private var currentPage = 1
+    private var lastPage = 1
+    private var isLoadingMore = false
+    private var searchJob: Job? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -50,16 +58,23 @@ class LaporanFragment : Fragment() {
             startActivity(intent)
         }
 
-        binding.rvLaporan.layoutManager = LinearLayoutManager(requireContext())
+        val layoutManager = LinearLayoutManager(requireContext())
+        binding.rvLaporan.layoutManager = layoutManager
         binding.rvLaporan.adapter = adapter
 
         binding.swipeRefresh.setOnRefreshListener {
-            loadLaporan()
+            currentPage = 1
+            loadLaporan(isRefresh = true)
         }
 
-        binding.etCari.doAfterTextChanged {
-            currentSearch = it?.toString()?.trim()?.takeIf { s -> s.isNotEmpty() }
-            loadLaporan()
+        binding.etCari.doAfterTextChanged { text ->
+            searchJob?.cancel()
+            searchJob = viewLifecycleOwner.lifecycleScope.launch {
+                delay(400) // Debounce 400ms
+                currentSearch = text?.toString()?.trim()?.takeIf { s -> s.isNotEmpty() }
+                currentPage = 1
+                loadLaporan(isRefresh = true)
+            }
         }
 
         binding.chipGroupFilter.setOnCheckedStateChangeListener { _, checkedIds ->
@@ -68,55 +83,79 @@ class LaporanFragment : Fragment() {
             currentUrgensi = null
             when (checkedIds.first()) {
                 R.id.chipKritis -> currentUrgensi = "kritis"
-                R.id.chipDiproses -> currentStatus = "diverifikasi"
+                R.id.chipDiproses -> currentStatus = "diverifikasi,ditangani"
                 R.id.chipSelesai -> currentStatus = "selesai"
                 else -> {
                     // Semua
                 }
             }
-            loadLaporan()
+            currentPage = 1
+            loadLaporan(isRefresh = true)
         }
 
-        loadLaporan()
+        binding.rvLaporan.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                super.onScrolled(recyclerView, dx, dy)
+                if (dy > 0 && !isLoadingMore && currentPage < lastPage) {
+                    val visibleItemCount = layoutManager.childCount
+                    val totalItemCount = layoutManager.itemCount
+                    val pastVisibleItems = layoutManager.findFirstVisibleItemPosition()
+
+                    if ((visibleItemCount + pastVisibleItems) >= totalItemCount - 3) {
+                        currentPage++
+                        loadLaporan(isLoadMore = true)
+                    }
+                }
+            }
+        })
+
+        loadLaporan(isRefresh = true)
     }
 
-    override fun onResume() {
-        super.onResume()
-        loadLaporan()
-    }
+    private fun loadLaporan(isRefresh: Boolean = false, isLoadMore: Boolean = false) {
+        if (isLoadMore) {
+            isLoadingMore = true
+        } else if (isRefresh) {
+            binding.stateLoading.root.isVisible = laporanList.isEmpty()
+            binding.stateError.root.isVisible = false
+            binding.stateEmpty.root.isVisible = false
+        }
 
-    private fun loadLaporan() {
-        binding.stateLoading.root.isVisible = laporanList.isEmpty()
-        binding.stateError.root.isVisible = false
-        binding.stateEmpty.root.isVisible = false
-
-        lifecycleScope.launch {
-            try {
-                val resp = RetrofitClient.getApiService(requireContext()).getLaporan(
+        viewLifecycleOwner.lifecycleScope.launch {
+            val res = apiCall {
+                RetrofitClient.getApiService(requireContext()).getLaporan(
                     search = currentSearch,
                     status = currentStatus,
-                    urgensi = currentUrgensi
+                    urgensi = currentUrgensi,
+                    page = currentPage,
+                    perPage = 15
                 )
-                binding.stateLoading.root.isVisible = false
-                binding.swipeRefresh.isRefreshing = false
+            }
 
-                if (resp.isSuccessful && resp.body()?.success == true) {
-                    val paginated = resp.body()?.data
+            binding.stateLoading.root.isVisible = false
+            binding.swipeRefresh.isRefreshing = false
+            isLoadingMore = false
+
+            when (res) {
+                is ApiResult.Success -> {
+                    val paginated = res.data
                     val items = paginated?.items.orEmpty()
-                    laporanList.clear()
+                    lastPage = paginated?.meta?.last_page ?: 1
+                    val totalCount = paginated?.meta?.total ?: items.size
+
+                    if (isRefresh) {
+                        laporanList.clear()
+                    }
                     laporanList.addAll(items)
                     adapter.notifyDataSetChanged()
 
-                    binding.tvJumlah.text = "${items.size} laporan"
-                    binding.stateEmpty.root.isVisible = items.isEmpty()
-                } else {
-                    binding.stateError.root.isVisible = true
+                    binding.tvJumlah.text = "$totalCount laporan"
+                    binding.stateEmpty.root.isVisible = laporanList.isEmpty()
                 }
-            } catch (_: Exception) {
-                binding.stateLoading.root.isVisible = false
-                binding.swipeRefresh.isRefreshing = false
-                if (laporanList.isEmpty()) {
-                    binding.stateError.root.isVisible = true
+                is ApiResult.Failure -> {
+                    if (laporanList.isEmpty()) {
+                        binding.stateError.root.isVisible = true
+                    }
                 }
             }
         }
@@ -143,13 +182,11 @@ class LaporanFragment : Fragment() {
 
         override fun onBindViewHolder(holder: VH, position: Int) {
             val l = list[position]
-            holder.b.tvJudul.text = l.judul
+            holder.b.tvJudul.text = l.judul ?: "Bencana"
             val katName = l.kategori?.nama ?: "Bencana"
-            holder.b.tvMeta.text = "$katName · ${l.created_at ?: "Baru saja"}"
-            val urgStr = (l.urgensi ?: "sedang").replaceFirstChar {
-                if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString()
-            }
-            holder.b.tvBadge.text = urgStr
+            holder.b.tvMeta.text = "$katName · ${formatTanggal(l.created_at)}"
+            holder.b.tvBadge.applyBadge(l)
+            holder.b.cbPilih.isVisible = false
 
             holder.b.root.setOnClickListener { onClick(l) }
         }

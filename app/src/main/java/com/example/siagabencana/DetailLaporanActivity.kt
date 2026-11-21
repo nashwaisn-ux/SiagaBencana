@@ -1,7 +1,7 @@
 package com.example.siagabencana
 
 import android.content.Intent
-import android.net.Uri
+import android.graphics.Color
 import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
@@ -23,7 +23,6 @@ import com.example.siagabencana.model.UpdateStatusRequest
 import com.example.siagabencana.network.RetrofitClient
 import com.example.siagabencana.ui.applyUrgensi
 import com.example.siagabencana.ui.formatTanggal
-import com.example.siagabencana.ui.toStatusLaporan
 import com.example.siagabencana.ui.toUrgensi
 import com.example.siagabencana.ui.toast
 import com.google.android.material.button.MaterialButton
@@ -54,10 +53,14 @@ class DetailLaporanActivity : AppCompatActivity() {
         if (laporanId == -1) {
             toast("Laporan tidak ditemukan")
             finish()
-            return
         }
+    }
 
-        loadDetail()
+    override fun onResume() {
+        super.onResume()
+        if (laporanId != -1) {
+            loadDetail()
+        }
     }
 
     private fun loadDetail() {
@@ -90,12 +93,108 @@ class DetailLaporanActivity : AppCompatActivity() {
         findViewById<TextView>(R.id.tvBadgeUrgensi)?.applyUrgensi(l.urgensi.toUrgensi())
         findViewById<TextView>(R.id.tvBadgeJenis)?.text = l.kategori?.nama ?: "Bencana"
         findViewById<TextView>(R.id.tvKoordinat)?.text = String.format(Locale.US, "%.4f, %.4f", l.latitude, l.longitude)
-        
+
         val pelaporNama = l.pelapor?.nama ?: "Warga"
         findViewById<TextView>(R.id.tvPelapor)?.text = "Dilaporkan oleh $pelaporNama · ${formatTanggal(l.created_at)}"
 
+        // Map Click Listener
+        findViewById<View>(R.id.tvBukaPeta)?.setOnClickListener {
+            val intent = Intent(this, PetaSiagaActivity::class.java).apply {
+                putExtra(PetaSiagaActivity.EXTRA_LAT, l.latitude)
+                putExtra(PetaSiagaActivity.EXTRA_LNG, l.longitude)
+                putExtra(PetaSiagaActivity.EXTRA_JUDUL, l.judul ?: "Bencana")
+            }
+            startActivity(intent)
+        }
+
+        bindTimeline(l)
+        bindRelawanCard(l)
         setupFoto(l)
         setupAksi(l)
+    }
+
+    private fun bindTimeline(l: Laporan) {
+        val tvWaktuDiterima = findViewById<TextView>(R.id.tvWaktuDiterima)
+        val ivStep2 = findViewById<ImageView>(R.id.ivStep2)
+        val tvStep2Judul = findViewById<TextView>(R.id.tvStep2Judul)
+        val tvKeteranganProses = findViewById<TextView>(R.id.tvKeteranganProses)
+        val ivStep3 = findViewById<ImageView>(R.id.ivStep3)
+        val tvStep3Judul = findViewById<TextView>(R.id.tvStep3Judul)
+
+        tvWaktuDiterima?.text = formatTanggal(l.created_at)
+
+        val st = l.status?.lowercase().orEmpty()
+        when (st) {
+            "diverifikasi" -> {
+                tvStep2Judul?.text = "Diverifikasi petugas"
+                tvStep2Judul?.setTextColor(ContextCompat.getColor(this, R.color.badge_high_text))
+                ivStep2?.setImageResource(R.drawable.ic_check)
+                ivStep2?.setBackgroundResource(R.drawable.bg_circle_orange)
+            }
+            "ditangani" -> {
+                tvStep2Judul?.text = "Sedang ditangani"
+                tvStep2Judul?.setTextColor(ContextCompat.getColor(this, R.color.badge_high_text))
+                ivStep2?.setImageResource(R.drawable.ic_check)
+                ivStep2?.setBackgroundResource(R.drawable.bg_circle_orange)
+            }
+            "selesai" -> {
+                tvStep2Judul?.text = "Penanganan dilakukan"
+                tvStep2Judul?.setTextColor(ContextCompat.getColor(this, R.color.badge_done_text))
+                ivStep2?.setImageResource(R.drawable.ic_check)
+                ivStep2?.setBackgroundResource(R.drawable.bg_circle_green)
+            }
+            else -> { // "baru"
+                tvStep2Judul?.text = "Menunggu verifikasi"
+                tvStep2Judul?.setTextColor(ContextCompat.getColor(this, R.color.siaga_text_secondary))
+                ivStep2?.setImageDrawable(null)
+                ivStep2?.setBackgroundResource(R.drawable.bg_circle_outline)
+            }
+        }
+
+        val latestRiwayat = l.riwayat?.lastOrNull { it.status_baru == l.status }
+        val ket = latestRiwayat?.keterangan
+        if (!ket.isNullOrBlank()) {
+            tvKeteranganProses?.text = ket
+            tvKeteranganProses?.isVisible = true
+        } else {
+            tvKeteranganProses?.isVisible = false
+        }
+
+        if (st == "selesai") {
+            ivStep3?.setImageResource(R.drawable.ic_check)
+            ivStep3?.setBackgroundResource(R.drawable.bg_circle_green)
+            tvStep3Judul?.setTextColor(ContextCompat.getColor(this, R.color.badge_done_text))
+        } else {
+            ivStep3?.setImageDrawable(null)
+            ivStep3?.setBackgroundResource(R.drawable.bg_circle_outline)
+            tvStep3Judul?.setTextColor(ContextCompat.getColor(this, R.color.siaga_text_secondary))
+        }
+    }
+
+    private fun bindRelawanCard(l: Laporan) {
+        val tvNamaRelawan = findViewById<TextView>(R.id.tvNamaRelawan)
+        val tvInisialRelawan = findViewById<TextView>(R.id.tvInisialRelawan)
+        val tvInfoRelawan = findViewById<TextView>(R.id.tvInfoRelawan)
+
+        val latestPenugasan = l.penugasan?.lastOrNull()
+        if (latestPenugasan != null && latestPenugasan.relawan != null) {
+            val rNama = latestPenugasan.relawan.nama
+            tvNamaRelawan?.text = rNama
+            tvInfoRelawan?.text = "Status tugas: ${latestPenugasan.status_tugas}"
+
+            val inisial = rNama.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }.let { parts ->
+                when {
+                    parts.isEmpty() -> "RL"
+                    parts.size == 1 -> parts[0].take(2).uppercase()
+                    else -> "${parts.first().first()}${parts.last().first()}".uppercase()
+                }
+            }
+            tvInisialRelawan?.text = inisial
+        } else {
+            tvNamaRelawan?.text = "Belum ada relawan ditugaskan"
+            tvInisialRelawan?.text = "-"
+            tvInfoRelawan?.text = "Status tugas: - "
+        }
     }
 
     private fun setupFoto(l: Laporan) {
@@ -123,25 +222,30 @@ class DetailLaporanActivity : AppCompatActivity() {
 
     private fun setupAksi(l: Laporan) {
         val bar = findViewById<View>(R.id.bottomBar)
+        val btnTugaskan = findViewById<MaterialButton>(R.id.btnTugaskan)
+
         when (role) {
             SessionManager.ROLE_PETUGAS -> {
                 bar?.isVisible = true
+                btnTugaskan?.isVisible = l.status != "selesai"
+
                 findViewById<View>(R.id.btnStatus)?.setOnClickListener { pilihStatusPetugas(l) }
-                findViewById<View>(R.id.btnHapus)?.setOnClickListener { konfirmasiHapusPetugas(l) }
-                findViewById<View>(R.id.btnTugaskan)?.setOnClickListener { tugaskanRelawanDialog(l) }
+                findViewById<View>(R.id.btnHapus)?.setOnClickListener { konfirmasiHapusPetugas() }
+                btnTugaskan?.setOnClickListener { tugaskanRelawanDialog() }
             }
             SessionManager.ROLE_RELAWAN -> {
                 bar?.isVisible = l.status != "selesai"
                 findViewById<View>(R.id.btnPeta)?.setOnClickListener {
                     val intent = Intent(this, PetaSiagaActivity::class.java).apply {
-                        putExtra("EXTRA_LAT", l.latitude)
-                        putExtra("EXTRA_LNG", l.longitude)
+                        putExtra(PetaSiagaActivity.EXTRA_LAT, l.latitude)
+                        putExtra(PetaSiagaActivity.EXTRA_LNG, l.longitude)
+                        putExtra(PetaSiagaActivity.EXTRA_JUDUL, l.judul ?: "Bencana")
                     }
                     startActivity(intent)
                 }
                 val btnAmbil = findViewById<MaterialButton>(R.id.btnAmbil)
                 val myPenugasan = l.penugasan?.firstOrNull { it.relawan?.id == session.getUserId() }
-                
+
                 if (myPenugasan != null) {
                     if (myPenugasan.status_tugas == "ditugaskan") {
                         btnAmbil?.text = "Terima Tugas"
@@ -170,7 +274,7 @@ class DetailLaporanActivity : AppCompatActivity() {
                     }
                     startActivity(intent)
                 }
-                findViewById<View>(R.id.btnHapus)?.setOnClickListener { konfirmasiHapusMasyarakat(l) }
+                findViewById<View>(R.id.btnHapus)?.setOnClickListener { konfirmasiHapusMasyarakat() }
             }
         }
     }
@@ -202,7 +306,7 @@ class DetailLaporanActivity : AppCompatActivity() {
                     setResult(RESULT_OK)
                     loadDetail()
                 } else {
-                    toast("Gagal mengubah status")
+                    toast(resp.body()?.message ?: "Gagal mengubah status")
                 }
             } catch (_: Exception) {
                 toast("Gagal terhubung ke server")
@@ -210,7 +314,7 @@ class DetailLaporanActivity : AppCompatActivity() {
         }
     }
 
-    private fun konfirmasiHapusPetugas(l: Laporan) {
+    private fun konfirmasiHapusPetugas() {
         MaterialAlertDialogBuilder(this)
             .setTitle("Hapus laporan ini?")
             .setMessage("Laporan akan dihapus permanen dari sistem.")
@@ -221,7 +325,7 @@ class DetailLaporanActivity : AppCompatActivity() {
             .show()
     }
 
-    private fun konfirmasiHapusMasyarakat(l: Laporan) {
+    private fun konfirmasiHapusMasyarakat() {
         MaterialAlertDialogBuilder(this)
             .setTitle("Hapus laporan Anda?")
             .setMessage("Laporan Anda akan dihapus permanen.")
@@ -241,7 +345,7 @@ class DetailLaporanActivity : AppCompatActivity() {
                     setResult(RESULT_OK)
                     finish()
                 } else {
-                    toast("Gagal menghapus laporan")
+                    toast(resp.body()?.message ?: "Gagal menghapus laporan")
                 }
             } catch (_: Exception) {
                 toast("Gagal terhubung ke server")
@@ -249,18 +353,19 @@ class DetailLaporanActivity : AppCompatActivity() {
         }
     }
 
-    private fun tugaskanRelawanDialog(l: Laporan) {
+    private fun tugaskanRelawanDialog() {
         lifecycleScope.launch {
             try {
                 val resp = RetrofitClient.getApiService(this@DetailLaporanActivity).getRelawan()
                 if (resp.isSuccessful && resp.body()?.success == true) {
-                    val relawans = resp.body()?.data.orEmpty()
+                    // Sort relawan by tugas_aktif ascending (terkecil di atas)
+                    val relawans = resp.body()?.data.orEmpty().sortedBy { it.tugas_aktif }
                     if (relawans.isEmpty()) {
                         toast("Belum ada relawan terdaftar")
                         return@launch
                     }
 
-                    val names = relawans.map { "${it.nama} (Tugas aktif: ${it.tugas_aktif})" }.toTypedArray()
+                    val names = relawans.map { "${it.nama} (tugas aktif: ${it.tugas_aktif})" }.toTypedArray()
                     MaterialAlertDialogBuilder(this@DetailLaporanActivity)
                         .setTitle("Tugaskan Relawan")
                         .setItems(names) { _, which ->
@@ -288,7 +393,7 @@ class DetailLaporanActivity : AppCompatActivity() {
                     setResult(RESULT_OK)
                     loadDetail()
                 } else {
-                    toast(resp.body()?.message ?: "Gagal menugaskan relawan")
+                    toast(resp.body()?.message ?: "Relawan sudah ditugaskan pada laporan ini")
                 }
             } catch (_: Exception) {
                 toast("Gagal terhubung ke server")
@@ -303,10 +408,9 @@ class DetailLaporanActivity : AppCompatActivity() {
                 val resp = RetrofitClient.getApiService(this@DetailLaporanActivity).updateStatusPenugasan(penugasanId, req)
                 if (resp.isSuccessful && resp.body()?.success == true) {
                     toast("Tugas diterima")
-                    // Otomatis ubah status laporan ke ditangani
                     updateStatusApi("ditangani")
                 } else {
-                    toast("Gagal menerima tugas")
+                    toast(resp.body()?.message ?: "Gagal menerima tugas")
                 }
             } catch (_: Exception) {
                 toast("Gagal terhubung ke server")
@@ -323,7 +427,7 @@ class DetailLaporanActivity : AppCompatActivity() {
                     toast("Tugas selesai")
                     updateStatusApi("selesai")
                 } else {
-                    toast("Gagal menyelesaikan tugas")
+                    toast(resp.body()?.message ?: "Gagal menyelesaikan tugas")
                 }
             } catch (_: Exception) {
                 toast("Gagal terhubung ke server")

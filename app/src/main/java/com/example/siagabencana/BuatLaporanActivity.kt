@@ -16,10 +16,13 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.example.siagabencana.data.SessionManager
 import com.example.siagabencana.databinding.ActivityBuatLaporanBinding
-import com.example.siagabencana.model.Urgensi
+import com.example.siagabencana.network.ApiResult
 import com.example.siagabencana.network.RetrofitClient
+import com.example.siagabencana.network.apiCall
 import com.example.siagabencana.ui.FotoAdapter
+import com.example.siagabencana.ui.ImageUtils
 import com.example.siagabencana.ui.toast
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import kotlinx.coroutines.Dispatchers
@@ -31,25 +34,14 @@ import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.osmdroid.config.Configuration
 import org.osmdroid.events.MapEventsReceiver
-import org.osmdroid.tileprovider.tilesource.XYTileSource
+import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.MapEventsOverlay
 import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.Polygon
 import java.io.File
-import java.io.FileOutputStream
 import java.util.Locale
-
-data class LaporanForm(
-    val judul: String,
-    val jenis: String,
-    val urgensi: Urgensi,
-    val deskripsi: String,
-    val lat: Double,
-    val lng: Double,
-    val fotos: List<Uri>,
-)
 
 class BuatLaporanActivity : AppCompatActivity() {
 
@@ -62,29 +54,23 @@ class BuatLaporanActivity : AppCompatActivity() {
     private var userGpsLat: Double? = null
     private var userGpsLng: Double? = null
 
-    private val pickMedia = registerForActivityResult(
-        ActivityResultContracts.PickMultipleVisualMedia(MAX_FOTO)
-    ) { uris ->
-        val maxSizeBytes = 30 * 1024 * 1024L // Maksimal 30 MB per foto
-        val validUris = mutableListOf<Uri>()
-        var skippedCount = 0
+    private var editLaporanId: Int = -1
 
-        for (uri in uris) {
+    private val pickMedia = registerForActivityResult(
+        ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        if (uri != null) {
+            val maxSizeBytes = 30 * 1024 * 1024L // Maksimal 30 MB per foto
             val size = getFileSize(uri)
             if (size > maxSizeBytes) {
-                skippedCount++
-            } else {
-                validUris.add(uri)
+                toast("Foto melebihi batas 30 MB. Harap pilih foto yang lebih kecil.")
+                return@registerForActivityResult
             }
-        }
 
-        if (skippedCount > 0) {
-            toast("$skippedCount foto melebihi batas 30 MB dan tidak ditambahkan.")
+            fotos.clear()
+            fotos.add(uri)
+            refreshFoto()
         }
-
-        val sisa = MAX_FOTO - fotos.size
-        fotos.addAll(validUris.take(sisa))
-        refreshFoto()
     }
 
     private val locationPermission = registerForActivityResult(
@@ -106,17 +92,25 @@ class BuatLaporanActivity : AppCompatActivity() {
 
         b.toolbar.setNavigationOnClickListener { finish() }
 
+        editLaporanId = intent.getIntExtra(DetailLaporanActivity.EXTRA_ID, -1)
+        if (editLaporanId != -1) {
+            b.toolbar.title = "Edit Laporan"
+            b.btnKirim.text = "Simpan Perubahan"
+            loadEditData()
+        }
+
         fotoAdapter = FotoAdapter(fotos) { index ->
-            fotos.removeAt(index)
-            refreshFoto()
+            if (index in fotos.indices) {
+                fotos.removeAt(index)
+                refreshFoto()
+            }
         }
         b.rvFoto.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
         b.rvFoto.adapter = fotoAdapter
         refreshFoto()
 
         b.btnTambahFoto.setOnClickListener {
-            if (fotos.size >= MAX_FOTO) toast("Maksimal $MAX_FOTO foto") else
-                pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+            pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
         }
         b.tvUbahLokasi.setOnClickListener { showMapLocationPicker() }
         b.btnKirim.setOnClickListener { submit() }
@@ -124,7 +118,42 @@ class BuatLaporanActivity : AppCompatActivity() {
         requestLocation()
     }
 
-    // ---- Lokasi & Map Location Picker (1 km Radius) ----
+    private fun loadEditData() {
+        lifecycleScope.launch {
+            setLoading(true)
+            val res = apiCall { RetrofitClient.getApiService(this@BuatLaporanActivity).getDetailLaporan(editLaporanId) }
+            setLoading(false)
+
+            when (res) {
+                is ApiResult.Success -> {
+                    val l = res.data ?: return@launch
+                    b.etJudul.setText(l.judul.orEmpty())
+                    b.etDeskripsi.setText(l.deskripsi.orEmpty())
+                    b.etJumlahTerdampak.setText(l.jumlah_terdampak.toString())
+
+                    lat = l.latitude
+                    lng = l.longitude
+                    b.tvKoordinat.text = String.format(Locale.US, "%.4f, %.4f", lat, lng)
+                    b.tvStatusLokasi.text = "Lokasi laporan dimuat"
+
+                    when (l.kategori_id_value()) {
+                        2 -> b.chipGroupJenis.check(R.id.chipJenisKebakaran)
+                        3 -> b.chipGroupJenis.check(R.id.chipJenisLongsor)
+                        6 -> b.chipGroupJenis.check(R.id.chipJenisLainnya)
+                        else -> b.chipGroupJenis.check(R.id.chipJenisBanjir)
+                    }
+                }
+                is ApiResult.Failure -> {
+                    toast(res.message)
+                    finish()
+                }
+            }
+        }
+    }
+
+    private fun com.example.siagabencana.model.Laporan.kategori_id_value(): Int {
+        return this.kategori?.id ?: 1
+    }
 
     private fun requestLocation() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) ==
@@ -154,10 +183,12 @@ class BuatLaporanActivity : AppCompatActivity() {
     }
 
     private fun showLocationUnavailable(message: String) {
-        lat = null
-        lng = null
-        b.tvKoordinat.text = "Lokasi belum diketahui"
-        b.tvStatusLokasi.text = message
+        if (editLaporanId == -1) {
+            lat = null
+            lng = null
+            b.tvKoordinat.text = "Lokasi belum diketahui"
+            b.tvStatusLokasi.text = message
+        }
     }
 
     private fun showMapLocationPicker() {
@@ -174,26 +205,20 @@ class BuatLaporanActivity : AppCompatActivity() {
         val mapView = dialogView.findViewById<MapView>(R.id.pickerMapView)
         val tvInfo = dialogView.findViewById<TextView>(R.id.tvPickerInfo)
 
-        val wikimediaTileSource = XYTileSource(
-            "Wikimedia", 0, 19, 256, ".png",
-            arrayOf("https://maps.wikimedia.org/osm-intl/"), "© Wikimedia"
-        )
-        mapView.setTileSource(wikimediaTileSource)
+        mapView.setTileSource(TileSourceFactory.MAPNIK)
         mapView.setMultiTouchControls(true)
         mapView.controller.setZoom(15.5)
         val centerGeo = GeoPoint(centerLat, centerLng)
         mapView.controller.setCenter(centerGeo)
 
-        // Circle 1 km radius overlay
         val circlePolygon = Polygon(mapView).apply {
-            points = createCirclePoints(centerGeo, 1000.0) // 1 km radius
+            points = createCirclePoints(centerGeo, 1000.0)
             fillPaint.color = Color.parseColor("#1AD32F2F")
             outlinePaint.color = Color.parseColor("#D32F2F")
             outlinePaint.strokeWidth = 3f
         }
         mapView.overlays.add(circlePolygon)
 
-        // Marker user GPS
         val userMarker = Marker(mapView).apply {
             position = centerGeo
             title = "Posisi Anda"
@@ -202,7 +227,6 @@ class BuatLaporanActivity : AppCompatActivity() {
         }
         mapView.overlays.add(userMarker)
 
-        // Selected location marker
         var selectedGeo = GeoPoint(lat ?: centerLat, lng ?: centerLng)
         val selectedMarker = Marker(mapView).apply {
             position = selectedGeo
@@ -251,6 +275,9 @@ class BuatLaporanActivity : AppCompatActivity() {
                 b.tvStatusLokasi.setTextColor(ContextCompat.getColor(this@BuatLaporanActivity, R.color.siaga_green))
             }
             .setNegativeButton("Batal", null)
+            .setOnDismissListener {
+                mapView.onDetach()
+            }
             .create()
 
         dialog.show()
@@ -272,110 +299,106 @@ class BuatLaporanActivity : AppCompatActivity() {
         }
     }
 
-    // ---- Foto ----
-
     private fun refreshFoto() {
         fotoAdapter.notifyDataSetChanged()
         b.btnTambahFoto.isVisible = fotos.size < MAX_FOTO
         if (fotos.isNotEmpty()) b.tvErrorFoto.isVisible = false
     }
 
-    // ---- Validasi dan kirim ----
-
-    private fun jenisTerpilih() = when (b.chipGroupJenis.checkedChipId) {
-        R.id.chipJenisKebakaran -> "Kebakaran"
-        R.id.chipJenisLongsor -> "Longsor"
-        R.id.chipJenisLainnya -> "Lainnya"
-        else -> "Banjir"
-    }
-
     private fun kategoriIdTerpilih() = when (b.chipGroupJenis.checkedChipId) {
         R.id.chipJenisKebakaran -> "2"
         R.id.chipJenisLongsor -> "3"
-        R.id.chipJenisLainnya -> "4"
+        R.id.chipJenisLainnya -> "6"
         else -> "1"
     }
 
-    private fun urgensiTerpilih() = when (b.toggleUrgensi.checkedButtonId) {
-        R.id.btnSedang -> Urgensi.SEDANG
-        R.id.btnTinggi -> Urgensi.TINGGI
-        R.id.btnKritis -> Urgensi.KRITIS
-        else -> Urgensi.RENDAH
-    }
-
-    private fun validate(): LaporanForm? {
+    private fun validate(): Boolean {
         val judul = b.etJudul.text?.toString().orEmpty().trim()
         val deskripsi = b.etDeskripsi.text?.toString().orEmpty().trim()
 
         b.tilJudul.error = if (judul.length >= 5) null else "Judul wajib diisi, minimal 5 karakter."
         b.tilDeskripsi.error = if (deskripsi.length >= 10) null else "Deskripsi minimal 10 karakter."
-        b.tvErrorFoto.isVisible = fotos.isEmpty()
+        if (editLaporanId == -1) {
+            b.tvErrorFoto.isVisible = fotos.isEmpty()
+        }
         val lokasiOk = lat != null && lng != null
         if (!lokasiOk) b.tvStatusLokasi.text = "Lokasi wajib. Nyalakan GPS lalu ketuk Ubah."
 
-        if (b.tilJudul.error != null || b.tilDeskripsi.error != null || fotos.isEmpty() || !lokasiOk) return null
-        return LaporanForm(judul, jenisTerpilih(), urgensiTerpilih(), deskripsi, lat!!, lng!!, fotos.toList())
+        val fotoOk = if (editLaporanId == -1) fotos.isNotEmpty() else true
+        return !(b.tilJudul.error != null || b.tilDeskripsi.error != null || !fotoOk || !lokasiOk)
     }
 
     private fun submit() {
-        val form = validate() ?: return
+        if (!validate()) return
         setLoading(true)
 
+        val judul = b.etJudul.text?.toString().orEmpty().trim()
+        val deskripsi = b.etDeskripsi.text?.toString().orEmpty().trim()
+        val jumlahTerdampak = b.etJumlahTerdampak.text?.toString().orEmpty().trim().ifEmpty { "0" }
+
         lifecycleScope.launch {
-            try {
-                val api = RetrofitClient.getApiService(this@BuatLaporanActivity)
-                val textType = "text/plain".toMediaTypeOrNull()
+            val textType = "text/plain".toMediaTypeOrNull()
 
-                val judulPart = form.judul.toRequestBody(textType)
-                val deskPart = form.deskripsi.toRequestBody(textType)
-                val katPart = kategoriIdTerpilih().toRequestBody(textType)
-                val latPart = form.lat.toString().toRequestBody(textType)
-                val lonPart = form.lng.toString().toRequestBody(textType)
-                val terdampakPart = "1".toRequestBody(textType)
+            val judulPart = judul.toRequestBody(textType)
+            val deskPart = deskripsi.toRequestBody(textType)
+            val katPart = kategoriIdTerpilih().toRequestBody(textType)
+            val latPart = lat.toString().toRequestBody(textType)
+            val lonPart = lng.toString().toRequestBody(textType)
+            val terdampakPart = jumlahTerdampak.toRequestBody(textType)
 
-                var photoPart: MultipartBody.Part? = null
-                if (form.fotos.isNotEmpty()) {
-                    val firstUri = form.fotos.first()
-                    val file = withContext(Dispatchers.IO) {
-                        val tempFile = File(cacheDir, "laporan_photo_${System.currentTimeMillis()}.jpg")
-                        contentResolver.openInputStream(firstUri)?.use { input ->
-                            FileOutputStream(tempFile).use { output ->
-                                input.copyTo(output)
-                            }
-                        }
-                        tempFile
-                    }
-                    if (file.exists() && file.length() > 0) {
-                        val reqFile = file.asRequestBody("image/jpeg".toMediaTypeOrNull())
-                        photoPart = MultipartBody.Part.createFormData("foto", file.name, reqFile)
-                    }
+            var photoPart: MultipartBody.Part? = null
+            if (fotos.isNotEmpty()) {
+                val compressedFile = withContext(Dispatchers.IO) {
+                    ImageUtils.compressToJpeg(this@BuatLaporanActivity, fotos.first(), maxSide = 1280, quality = 80)
                 }
+                if (compressedFile != null && compressedFile.exists()) {
+                    val mimeType = contentResolver.getType(fotos.first()) ?: "image/jpeg"
+                    val reqFile = compressedFile.asRequestBody(mimeType.toMediaTypeOrNull())
+                    photoPart = MultipartBody.Part.createFormData("foto", compressedFile.name, reqFile)
+                }
+            }
 
-                val response = api.createLaporan(
-                    judul = judulPart,
-                    deskripsi = deskPart,
-                    kategoriId = katPart,
-                    latitude = latPart,
-                    longitude = lonPart,
-                    jumlahTerdampak = terdampakPart,
-                    foto = photoPart
-                )
+            val api = RetrofitClient.getApiService(this@BuatLaporanActivity)
+            val result = if (editLaporanId != -1) {
+                val methodPart = "PUT".toRequestBody(textType)
+                apiCall {
+                    api.updateLaporanMultipart(
+                        id = editLaporanId,
+                        method = methodPart,
+                        judul = judulPart,
+                        deskripsi = deskPart,
+                        kategoriId = katPart,
+                        latitude = latPart,
+                        longitude = lonPart,
+                        jumlahTerdampak = terdampakPart,
+                        foto = photoPart
+                    )
+                }
+            } else {
+                apiCall {
+                    api.createLaporan(
+                        judul = judulPart,
+                        deskripsi = deskPart,
+                        kategoriId = katPart,
+                        latitude = latPart,
+                        longitude = lonPart,
+                        jumlahTerdampak = terdampakPart,
+                        foto = photoPart
+                    )
+                }
+            }
 
-                if (response.isSuccessful && response.body()?.success == true) {
-                    toast("Laporan berhasil terkirim & ditandai di peta!")
+            setLoading(false)
+
+            when (result) {
+                is ApiResult.Success -> {
+                    toast(if (editLaporanId != -1) "Laporan berhasil diperbarui!" else "Laporan berhasil terkirim & ditandai di peta!")
                     setResult(RESULT_OK)
                     finish()
-                } else {
-                    toast("Laporan tersimpan: ${form.judul}")
-                    setResult(RESULT_OK)
-                    finish()
                 }
-            } catch (_: Exception) {
-                toast("Laporan tersimpan (Offline): ${form.judul}")
-                setResult(RESULT_OK)
-                finish()
-            } finally {
-                setLoading(false)
+                is ApiResult.Failure -> {
+                    toast(result.message)
+                }
             }
         }
     }
@@ -386,6 +409,6 @@ class BuatLaporanActivity : AppCompatActivity() {
     }
 
     companion object {
-        private const val MAX_FOTO = 5
+        private const val MAX_FOTO = 1
     }
 }

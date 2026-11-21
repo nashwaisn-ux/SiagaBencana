@@ -113,7 +113,8 @@ data class DashboardData(
     val per_urgensi: Map<String, Int>,
     val per_kategori: List<KategoriStat>,
     val laporan_terbaru: List<Laporan>,
-    val tugas_aktif: Int? = null
+    val tugas_aktif: Int? = null,
+    val relawan_total: Int? = null
 )
 
 data class KategoriStat(

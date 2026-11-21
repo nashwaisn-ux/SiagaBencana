@@ -363,6 +363,12 @@ class LaporanController extends Controller
             $laporan->status = $statusBaru;
             $laporan->save();
 
+            if ($statusBaru === 'selesai') {
+                Penugasan::where('laporan_id', $laporan->id)
+                    ->whereIn('status_tugas', ['ditugaskan', 'diterima'])
+                    ->update(['status_tugas' => 'selesai']);
+            }
+
             RiwayatStatus::create([
                 'laporan_id' => $laporan->id,
                 'user_id' => $user->id,

@@ -23,7 +23,7 @@ import kotlinx.coroutines.launch
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.osmdroid.config.Configuration
-import org.osmdroid.tileprovider.tilesource.XYTileSource
+import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.CopyrightOverlay
@@ -50,6 +50,10 @@ class PetaSiagaActivity : AppCompatActivity() {
     private var currentCenterGeo = GeoPoint(0.5070677, 101.4477930)
     private var currentRadiusMeters = 3000.0 // Default 3 km
     private var currentCategoryFilter: String? = null
+
+    private var focusLat: Double = Double.NaN
+    private var focusLng: Double = Double.NaN
+    private var focusJudul: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -83,18 +87,24 @@ class PetaSiagaActivity : AppCompatActivity() {
             mapView.controller.zoomOut()
         }
 
-        // Setup Tile Source
-        val wikimediaTileSource = XYTileSource(
-            "Wikimedia",
-            0, 19, 256, ".png",
-            arrayOf("https://maps.wikimedia.org/osm-intl/"),
-            "© Wikimedia contributors"
-        )
-        mapView.setTileSource(wikimediaTileSource)
+        // B1: Tile source MAPNIK
+        mapView.setTileSource(TileSourceFactory.MAPNIK)
         mapView.setMultiTouchControls(true)
-        mapView.controller.setZoom(14.0)
-        mapView.controller.setCenter(currentCenterGeo)
         mapView.overlays.add(CopyrightOverlay(this))
+
+        // B2: Cek fokus laporan
+        focusLat = intent.getDoubleExtra(EXTRA_LAT, Double.NaN)
+        focusLng = intent.getDoubleExtra(EXTRA_LNG, Double.NaN)
+        focusJudul = intent.getStringExtra(EXTRA_JUDUL)
+
+        if (!focusLat.isNaN() && !focusLng.isNaN()) {
+            currentCenterGeo = GeoPoint(focusLat, focusLng)
+            mapView.controller.setZoom(16.0)
+            mapView.controller.setCenter(currentCenterGeo)
+        } else {
+            mapView.controller.setZoom(14.0)
+            mapView.controller.setCenter(currentCenterGeo)
+        }
 
         setupSosTouchListener()
         setupCategoryFilter()
@@ -107,9 +117,9 @@ class PetaSiagaActivity : AppCompatActivity() {
         chipGroupJenis.setOnCheckedStateChangeListener { _, checkedIds ->
             if (checkedIds.isEmpty()) return@setOnCheckedStateChangeListener
             currentCategoryFilter = when (checkedIds.first()) {
-                R.id.chipBanjir -> "Banjir"
-                R.id.chipKebakaran -> "Kebakaran"
-                R.id.chipLongsor -> "Longsor"
+                R.id.chipBanjir -> "banjir"
+                R.id.chipKebakaran -> "kebakaran"
+                R.id.chipLongsor -> "longsor"
                 else -> null
             }
             filterAndDisplayPoints()
@@ -157,7 +167,6 @@ class PetaSiagaActivity : AppCompatActivity() {
     }
 
     private fun filterAndDisplayPoints() {
-        // Hapus marker & polygon lama
         mapView.overlays.removeAll { it is Marker || it is Polygon }
 
         // Lingkaran Overlay Radius Area
@@ -169,10 +178,11 @@ class PetaSiagaActivity : AppCompatActivity() {
         }
         mapView.overlays.add(0, radiusPolygon)
 
-        // Filter berdasarkan kategori & jarak radius
+        // B4: Filter menggunakan contains(ignoreCase)
         val filteredPoints = allMapPoints.filter { p ->
+            val kat = p.kategori.orEmpty()
             val matchesCategory = currentCategoryFilter.isNullOrEmpty() ||
-                    p.kategori.equals(currentCategoryFilter, ignoreCase = true)
+                    kat.contains(currentCategoryFilter!!, ignoreCase = true)
 
             val dist = FloatArray(1)
             Location.distanceBetween(
@@ -200,6 +210,15 @@ class PetaSiagaActivity : AppCompatActivity() {
                 }
             }
             mapView.overlays.add(marker)
+
+            // Auto-show info window if this is the focused report
+            if (!focusLat.isNaN() && !focusLng.isNaN() &&
+                Math.abs(p.latitude - focusLat) < 0.0001 && Math.abs(p.longitude - focusLng) < 0.0001
+            ) {
+                marker.showInfoWindow()
+                tvTerdekatJudul.text = p.judul
+                tvTerdekatJarak.text = "${p.kategori ?: "Bencana"} · Urgensi: ${p.urgensi} · Status: ${p.status}"
+            }
         }
 
         val radiusLabelInKm = (currentRadiusMeters / 1000).toInt()
@@ -283,6 +302,7 @@ class PetaSiagaActivity : AppCompatActivity() {
                 val latPart = lat.toString().toRequestBody(textType)
                 val lonPart = lon.toString().toRequestBody(textType)
                 val terdampakTest = "1".toRequestBody(textType)
+                val sosPart = "1".toRequestBody(textType)
 
                 val response = api.createLaporan(
                     judul = judulPart,
@@ -291,7 +311,8 @@ class PetaSiagaActivity : AppCompatActivity() {
                     latitude = latPart,
                     longitude = lonPart,
                     jumlahTerdampak = terdampakTest,
-                    foto = null
+                    foto = null,
+                    sos = sosPart
                 )
 
                 if (response.isSuccessful && response.body()?.success == true) {
@@ -320,5 +341,16 @@ class PetaSiagaActivity : AppCompatActivity() {
     override fun onPause() {
         super.onPause()
         mapView.onPause()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        mapView.onDetach()
+    }
+
+    companion object {
+        const val EXTRA_LAT = "EXTRA_LAT"
+        const val EXTRA_LNG = "EXTRA_LNG"
+        const val EXTRA_JUDUL = "EXTRA_JUDUL"
     }
 }
