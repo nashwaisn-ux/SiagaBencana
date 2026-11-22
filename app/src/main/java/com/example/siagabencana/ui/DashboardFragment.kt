@@ -86,7 +86,16 @@ class DashboardFragment : Fragment() {
         rvTerbaru?.adapter = laporanAdapter
 
         view.findViewById<ImageButton>(R.id.btnNotifikasi)?.setOnClickListener {
-            Toast.makeText(requireContext(), "Tidak ada notifikasi baru", Toast.LENGTH_SHORT).show()
+            NotifikasiPopupHelper.show(
+                context = requireContext(),
+                laporanList = terbaruList,
+                onOpenLaporan = { laporanId ->
+                    val intent = Intent(requireContext(), DetailLaporanActivity::class.java).apply {
+                        putExtra(DetailLaporanActivity.EXTRA_ID, laporanId)
+                    }
+                    startActivity(intent)
+                }
+            )
         }
 
         view.findViewById<LinearLayout>(R.id.aksiLapor)?.setOnClickListener {
