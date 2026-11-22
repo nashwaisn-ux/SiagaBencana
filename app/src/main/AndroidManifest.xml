@@ -69,8 +69,6 @@
             android:exported="false"
             android:screenOrientation="portrait" />
 
-
-
         <activity
             android:name=".UbahDataDiriActivity"
             android:exported="false"
@@ -89,6 +87,18 @@
 
         <activity
             android:name=".RegistrasiRelawanActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
+            android:name=".UbahPasswordActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
+            android:name=".LupaSandiActivity"
             android:exported="false"
             android:screenOrientation="portrait"
             android:windowSoftInputMode="adjustResize" />

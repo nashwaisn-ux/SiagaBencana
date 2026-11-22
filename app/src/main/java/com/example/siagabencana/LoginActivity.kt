@@ -39,12 +39,20 @@ class LoginActivity : AppCompatActivity() {
         val etEmail = findViewById<EditText>(R.id.etEmail)
         val tilPassword = findViewById<TextInputLayout>(R.id.tilPassword)
         val etPassword = findViewById<EditText>(R.id.etPassword)
+        val tvLupaSandi = findViewById<TextView>(R.id.tvLupaSandi)
         val progressLogin = findViewById<LinearProgressIndicator>(R.id.progressLogin)
         val btnMasuk = findViewById<Button>(R.id.btnMasuk)
         val tvDaftar = findViewById<TextView>(R.id.tvDaftar)
 
         tvDaftar?.setOnClickListener {
             startActivity(Intent(this, RegistrasiActivity::class.java))
+        }
+
+        tvLupaSandi?.setOnClickListener {
+            startActivity(
+                Intent(this, LupaSandiActivity::class.java)
+                    .putExtra(LupaSandiActivity.EXTRA_EMAIL, etEmail?.text?.toString()?.trim().orEmpty())
+            )
         }
 
         btnMasuk?.setOnClickListener {

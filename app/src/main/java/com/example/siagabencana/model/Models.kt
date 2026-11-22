@@ -61,6 +61,12 @@ data class ChangePasswordRequest(
     val password_confirmation: String
 )
 
+data class ResetPasswordRequest(
+    val email: String,
+    val password: String,
+    val password_confirmation: String
+)
+
 data class Kategori(
     val id: Int,
     val nama: String

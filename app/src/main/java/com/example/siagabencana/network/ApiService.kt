@@ -40,6 +40,11 @@ interface ApiService {
         @Body request: ChangePasswordRequest
     ): Response<ApiResponse<Any>>
 
+    @POST("reset-password")
+    suspend fun resetPassword(
+        @Body request: ResetPasswordRequest
+    ): Response<ApiResponse<Any>>
+
     @GET("kategori")
     suspend fun getKategori(): Response<ApiResponse<List<Kategori>>>
 

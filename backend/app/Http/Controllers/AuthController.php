@@ -137,4 +137,25 @@ class AuthController extends Controller
 
         return $this->successResponse(null, 'Kata sandi berhasil diperbarui');
     }
+
+    public function resetPassword(Request $request)
+    {
+        $validated = $request->validate([
+            'email' => 'required|email',
+            'password' => 'required|string|min:6|confirmed',
+        ]);
+
+        $user = User::where('email', $validated['email'])->first();
+
+        if (! $user) {
+            return $this->errorResponse('Email tidak terdaftar', 404);
+        }
+
+        $user->password = Hash::make($validated['password']);
+        $user->save();
+
+        $user->tokens()->delete();
+
+        return $this->successResponse(null, 'Kata sandi berhasil diubah. Silakan masuk dengan kata sandi baru.');
+    }
 }
