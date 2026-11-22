@@ -71,6 +71,27 @@
                 android:textColor="@color/siaga_on_navy_muted"
                 android:textSize="12sp"
                 android:textStyle="bold" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnDetailProfil"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_width="wrap_content"
+                android:layout_height="38dp"
+                android:layout_marginTop="12dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:text="Detail profil"
+                android:textColor="@color/white"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                app:backgroundTint="@color/siaga_on_navy_muted"
+                app:cornerRadius="20dp"
+                app:icon="@drawable/ic_person"
+                app:iconPadding="6dp"
+                app:iconSize="16dp"
+                app:iconTint="@color/white" />
         </LinearLayout>
 
         <LinearLayout
