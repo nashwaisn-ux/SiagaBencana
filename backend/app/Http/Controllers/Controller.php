@@ -61,7 +61,9 @@ abstract class Controller
             'role' => $user->role ?? null,
             'no_hp' => $user->no_hp ?? null,
             'alamat' => $user->alamat ?? null,
+            'spesialisasi' => $user->spesialisasi ?? null,
             'foto_url' => $fotoUrl,
+            'created_at' => $user->created_at?->toIso8601String(),
         ];
     }
 

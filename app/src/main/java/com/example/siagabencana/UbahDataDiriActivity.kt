@@ -17,6 +17,7 @@ import com.bumptech.glide.Glide
 import com.example.siagabencana.data.SessionManager
 import com.example.siagabencana.databinding.ActivityUbahDataDiriBinding
 import com.example.siagabencana.model.UpdateProfileRequest
+import com.example.siagabencana.model.User
 import com.example.siagabencana.network.ApiResult
 import com.example.siagabencana.network.RetrofitClient
 import com.example.siagabencana.network.apiCall
@@ -59,7 +60,6 @@ class UbahDataDiriActivity : AppCompatActivity() {
                         .into(binding.imgAvatar)
                     binding.imgAvatar.isVisible = true
                     binding.tvAvatarInitial.isVisible = false
-                    session.saveProfilePhoto(croppedUri.toString())
                     Toast.makeText(
                         this@UbahDataDiriActivity,
                         "Foto profil berhasil dipotong (1:1) dan dipilih",
@@ -147,6 +147,22 @@ class UbahDataDiriActivity : AppCompatActivity() {
                     binding.btnSaveProfile.isEnabled = false
 
                     lifecycleScope.launch {
+                        // 1) Upload foto lebih dulu (jika user memilih foto baru)
+                        val fotoBaru = selectedPhotoUri
+                        if (fotoBaru != null) {
+                            val hasilUpload = uploadPhotoMultipart(fotoBaru)
+                            if (hasilUpload == null) {
+                                Toast.makeText(
+                                    this@UbahDataDiriActivity,
+                                    "Gagal mengunggah foto profil. Coba lagi.",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                                binding.btnSaveProfile.isEnabled = true
+                                return@launch
+                            }
+                        }
+
+                        // 2) Simpan data teks
                         val res = apiCall {
                             RetrofitClient.getApiService(this@UbahDataDiriActivity).updateProfile(
                                 UpdateProfileRequest(
@@ -160,21 +176,9 @@ class UbahDataDiriActivity : AppCompatActivity() {
 
                         when (res) {
                             is ApiResult.Success -> {
-                                val updatedUser = res.data
-                                selectedPhotoUri?.let { uri ->
-                                    uploadPhotoMultipart(uri)
-                                }
-                                val photoPath = selectedPhotoUri?.toString() ?: session.fotoUrl
-                                session.save(
-                                    token = session.token ?: "",
-                                    role = updatedUser?.role ?: session.role,
-                                    nama = updatedUser?.nama ?: fullName,
-                                    email = updatedUser?.email ?: email.ifEmpty { session.email },
-                                    id = updatedUser?.id ?: session.getUserId(),
-                                    noHp = updatedUser?.no_hp ?: phone.ifEmpty { session.noHp },
-                                    alamat = updatedUser?.alamat ?: address.ifEmpty { session.alamat },
-                                    fotoUrl = updatedUser?.foto_url ?: photoPath
-                                )
+                                // 3) Respons ini dibuat SETELAH upload, jadi sudah berisi
+                                //    foto_url terbaru dari database.
+                                res.data?.let { session.saveUserFromApi(it) }
 
                                 Toast.makeText(this@UbahDataDiriActivity, res.message, Toast.LENGTH_SHORT).show()
                                 setResult(
@@ -237,7 +241,7 @@ class UbahDataDiriActivity : AppCompatActivity() {
         }
     }
 
-    private suspend fun uploadPhotoMultipart(uri: Uri) = withContext(Dispatchers.IO) {
+    private suspend fun uploadPhotoMultipart(uri: Uri): User? = withContext(Dispatchers.IO) {
         try {
             val file = File(cacheDir, "avatar_upload.jpg")
             contentResolver.openInputStream(uri)?.use { input ->
@@ -248,14 +252,9 @@ class UbahDataDiriActivity : AppCompatActivity() {
             val requestFile = file.asRequestBody("image/jpeg".toMediaTypeOrNull())
             val body = MultipartBody.Part.createFormData("foto", file.name, requestFile)
             val resp = RetrofitClient.getApiService(this@UbahDataDiriActivity).uploadProfilePhoto(body)
-            if (resp.isSuccessful && resp.body()?.success == true) {
-                val serverPhotoUrl = resp.body()?.data?.foto_url
-                if (!serverPhotoUrl.isNullOrBlank()) {
-                    session.saveProfilePhoto(serverPhotoUrl)
-                }
-            }
+            if (resp.isSuccessful && resp.body()?.success == true) resp.body()?.data else null
         } catch (_: Exception) {
-            // Handled
+            null
         }
     }
 

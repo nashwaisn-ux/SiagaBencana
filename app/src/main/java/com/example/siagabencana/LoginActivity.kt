@@ -105,16 +105,8 @@ class LoginActivity : AppCompatActivity() {
                                 ).show()
                             }
 
-                            sessionManager.save(
-                                token = authData.token,
-                                role = serverRole,
-                                nama = authData.user.nama,
-                                email = authData.user.email,
-                                id = authData.user.id,
-                                noHp = authData.user.no_hp,
-                                alamat = authData.user.alamat,
-                                fotoUrl = authData.user.foto_url
-                            )
+                            sessionManager.saveAuthToken(authData.token)
+                            sessionManager.saveUserFromApi(authData.user)
 
                             Toast.makeText(
                                 this@LoginActivity,

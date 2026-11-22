@@ -10,7 +10,7 @@ composer install
 copy .env.example .env      # (atau cp .env.example .env)
 php artisan key:generate
 # (Buat database MySQL "siagabencana", user root tanpa password, atau sesuaikan DB_* di .env)
-php artisan migrate --seed
+php artisan migrate:fresh --seed
 php artisan storage:link
 php artisan serve --host=0.0.0.0 --port=8000
 ```

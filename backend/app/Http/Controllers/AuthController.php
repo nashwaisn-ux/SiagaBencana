@@ -82,10 +82,10 @@ class AuthController extends Controller
         if (!empty($validated['email'])) {
             $user->email = $validated['email'];
         }
-        if (isset($validated['no_hp'])) {
+        if (array_key_exists('no_hp', $validated)) {
             $user->no_hp = $validated['no_hp'];
         }
-        if (isset($validated['alamat'])) {
+        if (array_key_exists('alamat', $validated)) {
             $user->alamat = $validated['alamat'];
         }
         $user->save();

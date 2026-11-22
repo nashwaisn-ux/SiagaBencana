@@ -49,15 +49,7 @@ class Splash2Activity : AppCompatActivity() {
                     is ApiResult.Success -> {
                         val u = res.data
                         if (u != null) {
-                            sessionManager.saveUser(
-                                id = u.id,
-                                nama = u.nama,
-                                email = u.email,
-                                role = u.role,
-                                noHp = u.no_hp,
-                                alamat = u.alamat,
-                                fotoUrl = u.foto_url
-                            )
+                            sessionManager.saveUserFromApi(u)
                         }
                         startActivity(Intent(this@Splash2Activity, MainActivity::class.java))
                     }

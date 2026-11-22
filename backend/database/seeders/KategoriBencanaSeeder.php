@@ -20,7 +20,10 @@ class KategoriBencanaSeeder extends Seeder
         ];
 
         foreach ($kategori as [$nama, $bobot]) {
-            KategoriBencana::create(['nama' => $nama, 'bobot_urgensi' => $bobot]);
+            KategoriBencana::updateOrCreate(
+                ['nama' => $nama],
+                ['bobot_urgensi' => $bobot]
+            );
         }
     }
 }

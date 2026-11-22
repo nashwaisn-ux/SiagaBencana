@@ -219,7 +219,17 @@ Respons 201:
   "message": "Registrasi berhasil",
   "data": {
     "token": "1|abcdef123456...",
-    "user": { "id": 3, "nama": "Siti Aminah", "email": "siti@mail.com", "role": "masyarakat", "no_hp": "081234567890" }
+    "user": {
+      "id": 3,
+      "nama": "Siti Aminah",
+      "email": "siti@mail.com",
+      "role": "masyarakat",
+      "no_hp": "081234567890",
+      "alamat": null,
+      "spesialisasi": null,
+      "foto_url": null,
+      "created_at": "2026-11-22T04:18:00+00:00"
+    }
   }
 }
 ```
@@ -237,7 +247,17 @@ Respons 200:
   "message": "Login berhasil",
   "data": {
     "token": "2|xyz789...",
-    "user": { "id": 2, "nama": "Pak Joko", "email": "petugas@demo.test", "role": "petugas", "no_hp": null }
+    "user": {
+      "id": 2,
+      "nama": "Pak Joko",
+      "email": "petugas@demo.test",
+      "role": "petugas",
+      "no_hp": null,
+      "alamat": null,
+      "spesialisasi": null,
+      "foto_url": null,
+      "created_at": "2026-11-22T04:18:00+00:00"
+    }
   }
 }
 ```
@@ -256,7 +276,17 @@ Tanpa body. Menghapus token yang sedang dipakai.
 {
   "success": true,
   "message": "OK",
-  "data": { "id": 2, "nama": "Pak Joko", "email": "petugas@demo.test", "role": "petugas", "no_hp": null }
+  "data": {
+    "id": 2,
+    "nama": "Pak Joko",
+    "email": "petugas@demo.test",
+    "role": "petugas",
+    "no_hp": null,
+    "alamat": null,
+    "spesialisasi": null,
+    "foto_url": null,
+    "created_at": "2026-11-22T04:18:00+00:00"
+  }
 }
 ```
 

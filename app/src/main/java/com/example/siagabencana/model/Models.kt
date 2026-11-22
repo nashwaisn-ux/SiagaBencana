@@ -26,7 +26,9 @@ data class User(
     val role: String? = null,
     val no_hp: String? = null,
     val alamat: String? = null,
-    val foto_url: String? = null
+    val foto_url: String? = null,
+    val spesialisasi: String? = null,
+    val created_at: String? = null
 )
 
 data class AuthData(
