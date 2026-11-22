@@ -1,21 +1,39 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# ProGuard & R8 Optimization Rules for SiagaBencana
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# Preserve line numbers for stack traces
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# Preserve data models for Gson serialization
+-keep class com.example.siagabencana.model.** { *; }
+-keepclassmembers class com.example.siagabencana.model.** { *; }
+-keepattributes Signature, InnerClasses, EnclosingMethod
+-keepattributes *Annotation*
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# Retrofit
+-keepclassmembers interface * {
+    @retrofit2.http.* <methods>;
+}
+-dontwarn retrofit2.**
+-keep,allowobfuscation,allowshrinking class retrofit2.Response
+-keep,allowobfuscation,allowshrinking class kotlin.coroutines.Continuation
+
+# Gson
+-keepclassmembers class * implements com.google.gson.TypeAdapterFactory {
+    public <init>();
+}
+-keepclassmembers class * implements com.google.gson.JsonSerializer {
+    public <init>();
+}
+-keepclassmembers class * implements com.google.gson.JsonDeserializer {
+    public <init>();
+}
+-dontwarn com.google.gson.**
+
+# Glide
+-keep public class * extends com.bumptech.glide.module.AppGlideModule
+-dontwarn com.bumptech.glide.**
+
+# OSMDroid
+-keep class org.osmdroid.** { *; }
+-dontwarn org.osmdroid.**

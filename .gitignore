@@ -13,3 +13,13 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Kotlin generated files
+.kotlin/
+
+# Gradle generated files
+.gradle/
+**/build/
+
+# Android local configuration
+local.properties
