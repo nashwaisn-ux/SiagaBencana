@@ -1,6 +1,13 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
+}
+
+val localProps = Properties().apply {
+    val f = rootProject.file("local.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
 }
 
 android {
@@ -16,6 +23,7 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         val defaultBaseUrl = (project.findProperty("BASE_URL") as String?) ?: "http://192.168.137.1:8000/api/"
+        buildConfigField("String", "MAPTILER_KEY", "\"${localProps.getProperty("MAPTILER_KEY", "")}\"")
         buildConfigField("String", "BASE_URL", "\"$defaultBaseUrl\"")
         androidResources.localeFilters.addAll(listOf("id", "en"))
     }

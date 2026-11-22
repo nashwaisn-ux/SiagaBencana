@@ -33,8 +33,6 @@ import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.osmdroid.config.Configuration
 import org.osmdroid.events.MapEventsReceiver
-import org.osmdroid.tileprovider.tilesource.TileSourceFactory
-import org.osmdroid.tileprovider.tilesource.XYTileSource
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.MapEventsOverlay
@@ -83,7 +81,7 @@ class BuatLaporanActivity : AppCompatActivity() {
 
         Configuration.getInstance().apply {
             load(applicationContext, getSharedPreferences("osmdroid", MODE_PRIVATE))
-            userAgentValue = "com.example.siagabencana/1.0 (Android OS; contact: dev@siagabencana.app)"
+            userAgentValue = "SiagaBencanaApp/1.0 (Android)"
             osmdroidBasePath = File(cacheDir, "osmdroid")
             osmdroidTileCache = File(osmdroidBasePath, "tiles")
         }
@@ -200,17 +198,7 @@ class BuatLaporanActivity : AppCompatActivity() {
         val mapView = dialogView.findViewById<MapView>(R.id.pickerMapView)
         val tvInfo = dialogView.findViewById<TextView>(R.id.tvPickerInfo)
 
-        val cartoTileSource = XYTileSource(
-            "CartoDBVoyager",
-            0, 19, 256, ".png",
-            arrayOf(
-                "https://a.basemaps.cartocdn.com/rastertiles/voyager/",
-                "https://b.basemaps.cartocdn.com/rastertiles/voyager/",
-                "https://c.basemaps.cartocdn.com/rastertiles/voyager/"
-            ),
-            "© OpenStreetMap contributors, © CartoDB"
-        )
-        mapView.setTileSource(cartoTileSource)
+        mapView.setTileSource(MapTiles.source())
         mapView.setMultiTouchControls(true)
         mapView.controller.setZoom(15.5)
         val centerGeo = GeoPoint(centerLat, centerLng)

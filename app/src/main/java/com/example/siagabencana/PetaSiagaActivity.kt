@@ -26,7 +26,7 @@ import com.google.android.material.progressindicator.LinearProgressIndicator
 import kotlinx.coroutines.launch
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.toRequestBody
-import org.osmdroid.tileprovider.tilesource.XYTileSource
+import org.osmdroid.config.Configuration
 import org.osmdroid.util.BoundingBox
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
@@ -77,6 +77,13 @@ class PetaSiagaActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // osmdroid wajib dikonfigurasi (termasuk User-Agent) SEBELUM MapView dibuat
+        Configuration.getInstance().apply {
+            load(applicationContext, getSharedPreferences("osmdroid", MODE_PRIVATE))
+            userAgentValue = "SiagaBencanaApp/1.0 (Android)"
+        }
+
         setContentView(R.layout.activity_peta_siaga)
 
         mapView = findViewById(R.id.mapView)
@@ -97,17 +104,7 @@ class PetaSiagaActivity : AppCompatActivity() {
             mapView.controller.zoomOut()
         }
 
-        val cartoTileSource = XYTileSource(
-            "CartoDBVoyager",
-            0, 19, 256, ".png",
-            arrayOf(
-                "https://a.basemaps.cartocdn.com/rastertiles/voyager/",
-                "https://b.basemaps.cartocdn.com/rastertiles/voyager/",
-                "https://c.basemaps.cartocdn.com/rastertiles/voyager/"
-            ),
-            "© OpenStreetMap contributors, © CartoDB"
-        )
-        mapView.setTileSource(cartoTileSource)
+        mapView.setTileSource(MapTiles.source())
         mapView.setMultiTouchControls(true)
         mapView.overlays.add(CopyrightOverlay(this))
 
