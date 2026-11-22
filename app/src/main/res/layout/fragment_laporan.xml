@@ -71,7 +71,7 @@
 
             <com.google.android.material.chip.ChipGroup
                 android:id="@+id/chipGroupFilter"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 app:chipSpacingHorizontal="8dp"
                 app:selectionRequired="true"
@@ -124,6 +124,14 @@
                 android:id="@+id/swipeRefresh"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent">
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rvLaporan"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:clipToPadding="false"
+                    android:paddingBottom="96dp"
+                    tools:listitem="@layout/item_laporan" />
             </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
             <include

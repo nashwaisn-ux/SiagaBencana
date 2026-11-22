@@ -9,11 +9,6 @@ class RelawanController extends Controller
 {
     public function index(Request $request)
     {
-        $user = $request->user();
-        if ($user->role !== 'petugas') {
-            return $this->errorResponse('Akses ditolak', 403);
-        }
-
         $query = User::where('role', 'relawan');
 
         if ($request->has('search')) {

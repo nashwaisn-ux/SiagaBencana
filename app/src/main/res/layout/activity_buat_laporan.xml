@@ -31,7 +31,7 @@
             android:orientation="vertical"
             android:padding="20dp">
 
-            <!-- Validasi: tilJudul.error = "Judul wajib diisi, minimal 5 karakter." -->
+            <!-- Judul -->
             <com.google.android.material.textfield.TextInputLayout
                 android:id="@+id/tilJudul"
                 style="@style/Widget.Siaga.Input"
@@ -50,6 +50,7 @@
                     android:maxLines="1" />
             </com.google.android.material.textfield.TextInputLayout>
 
+            <!-- Jenis Bencana -->
             <TextView
                 style="@style/SiagaLabel"
                 android:layout_width="wrap_content"
@@ -64,43 +65,23 @@
                 android:layout_marginTop="6dp"
                 app:chipSpacingHorizontal="8dp"
                 app:selectionRequired="true"
+                app:singleLine="true"
                 app:singleSelection="true">
 
                 <com.google.android.material.chip.Chip android:id="@+id/chipJenisBanjir" style="@style/Widget.Siaga.Chip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:checked="true" android:text="Banjir" />
                 <com.google.android.material.chip.Chip android:id="@+id/chipJenisKebakaran" style="@style/Widget.Siaga.Chip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Kebakaran" />
-                <com.google.android.material.chip.Chip android:id="@+id/chipJenisLongsor" style="@style/Widget.Siaga.Chip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Longsor" />
+                <com.google.android.material.chip.Chip android:id="@+id/chipJenisLongsor" style="@style/Widget.Siaga.Chip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Tanah Longsor" />
                 <com.google.android.material.chip.Chip android:id="@+id/chipJenisLainnya" style="@style/Widget.Siaga.Chip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Lainnya" />
             </com.google.android.material.chip.ChipGroup>
 
-            <TextView
-                style="@style/SiagaLabel"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:text="Tingkat urgensi" />
-
-            <com.google.android.material.button.MaterialButtonToggleGroup
-                android:id="@+id/toggleUrgensi"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                app:checkedButton="@id/btnRendah"
-                app:selectionRequired="true"
-                app:singleSelection="true">
-
-                <com.google.android.material.button.MaterialButton android:id="@+id/btnRendah" style="@style/Widget.Siaga.Button.Toggle" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Rendah" />
-                <com.google.android.material.button.MaterialButton android:id="@+id/btnSedang" style="@style/Widget.Siaga.Button.Toggle" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Sedang" />
-                <com.google.android.material.button.MaterialButton android:id="@+id/btnTinggi" style="@style/Widget.Siaga.Button.Toggle" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Tinggi" />
-                <com.google.android.material.button.MaterialButton android:id="@+id/btnKritis" style="@style/Widget.Siaga.Button.Toggle" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Kritis" />
-            </com.google.android.material.button.MaterialButtonToggleGroup>
-
+            <!-- Deskripsi -->
             <com.google.android.material.textfield.TextInputLayout
                 android:id="@+id/tilDeskripsi"
                 style="@style/Widget.Siaga.Input"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
-                android:hint="Deskripsi">
+                android:hint="Deskripsi kejadian">
 
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/etDeskripsi"
@@ -111,11 +92,40 @@
                     android:minLines="3" />
             </com.google.android.material.textfield.TextInputLayout>
 
+            <!-- Perkiraan Jumlah Terdampak -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/tilJumlahTerdampak"
+                style="@style/Widget.Siaga.Input"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:hint="Perkiraan jumlah orang terdampak (opsional)">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etJumlahTerdampak"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="number"
+                    android:maxLength="7"
+                    android:maxLines="1" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- Teks Keterangan Urgensi Otomatis -->
+            <TextView
+                style="@style/SiagaCaption"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:background="@drawable/bg_info_blue"
+                android:padding="10dp"
+                android:text="ℹ️ Tingkat urgensi ditentukan otomatis oleh sistem berdasarkan jenis bencana, jumlah terdampak, dan deskripsi." />
+
+            <!-- Titik Lokasi -->
             <TextView
                 style="@style/SiagaLabel"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
+                android:layout_marginTop="16dp"
                 android:text="Titik lokasi" />
 
             <com.google.android.material.card.MaterialCardView
@@ -180,12 +190,13 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
+            <!-- Foto Bukti -->
             <TextView
                 style="@style/SiagaLabel"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
-                android:text="Foto bukti (maks. 3)" />
+                android:text="Foto bukti (maks. 30 MB)" />
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -199,7 +210,7 @@
                     android:layout_height="96dp"
                     android:orientation="horizontal"
                     app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
-                    tools:itemCount="2"
+                    tools:itemCount="1"
                     tools:listitem="@layout/item_foto_bukti" />
 
                 <LinearLayout

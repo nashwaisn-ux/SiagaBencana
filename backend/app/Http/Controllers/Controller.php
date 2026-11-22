@@ -50,12 +50,18 @@ abstract class Controller
     protected function formatUser($user)
     {
         if (!$user) return null;
+        $fotoUrl = null;
+        if (!empty($user->foto_url)) {
+            $fotoUrl = str_starts_with($user->foto_url, 'http') ? $user->foto_url : url('storage/' . $user->foto_url);
+        }
         return [
             'id' => $user->id,
             'nama' => $user->nama,
             'email' => $user->email ?? null,
             'role' => $user->role ?? null,
             'no_hp' => $user->no_hp ?? null,
+            'alamat' => $user->alamat ?? null,
+            'foto_url' => $fotoUrl,
         ];
     }
 
@@ -70,11 +76,24 @@ abstract class Controller
 
     protected function formatLaporanList($laporan)
     {
+        $fotoUrls = [];
+        if (!empty($laporan->foto)) {
+            $decoded = json_decode($laporan->foto, true);
+            if (is_array($decoded)) {
+                foreach ($decoded as $f) {
+                    $fotoUrls[] = str_starts_with($f, 'http') ? $f : url('storage/' . $f);
+                }
+            } else {
+                $fotoUrls[] = str_starts_with($laporan->foto, 'http') ? $laporan->foto : url('storage/' . $laporan->foto);
+            }
+        }
+
         return [
             'id' => $laporan->id,
             'judul' => $laporan->judul,
             'deskripsi' => $laporan->deskripsi,
-            'foto_url' => $laporan->foto ? url('storage/' . $laporan->foto) : null,
+            'foto_url' => $fotoUrls[0] ?? null,
+            'foto_urls' => $fotoUrls,
             'latitude' => (float) $laporan->latitude,
             'longitude' => (float) $laporan->longitude,
             'jumlah_terdampak' => (int) $laporan->jumlah_terdampak,
@@ -93,6 +112,7 @@ abstract class Controller
         return [
             'id' => $user->id,
             'nama' => $user->nama,
+            'no_hp' => $user->no_hp ?? null,
         ];
     }
 
@@ -128,33 +148,19 @@ abstract class Controller
 
     protected function hitungUrgensi($kategoriId, $jumlahTerdampak, $deskripsi)
     {
-        $kategori = \App\Models\KategoriBencana::find($kategoriId);
-        $bobot = $kategori ? $kategori->bobot_urgensi : 1;
+        $jumlah = (int) $jumlahTerdampak;
 
-        $skorTerdampak = 0;
-        if ($jumlahTerdampak >= 50) {
-            $skorTerdampak = 3;
-        } elseif ($jumlahTerdampak >= 20) {
-            $skorTerdampak = 2;
-        } elseif ($jumlahTerdampak >= 5) {
-            $skorTerdampak = 1;
+        $descLower = strtolower($deskripsi ?? '');
+        $isCriticalKeyword = str_contains($descLower, 'meninggal') || str_contains($descLower, 'terjebak') || str_contains($descLower, 'korban jiwa');
+
+        if ($jumlah >= 1000 || $isCriticalKeyword) {
+            return 'kritis';
+        } elseif ($jumlah >= 100) {
+            return 'tinggi';
+        } elseif ($jumlah >= 10) {
+            return 'sedang';
+        } else {
+            return 'rendah';
         }
-
-        $skorKata = 0;
-        $keywords = ['korban', 'terjebak', 'meluas', 'evakuasi', 'meninggal'];
-        $descLower = strtolower($deskripsi);
-        foreach ($keywords as $kw) {
-            if (str_contains($descLower, $kw)) {
-                $skorKata = 2;
-                break;
-            }
-        }
-
-        $totalSkor = $bobot + $skorTerdampak + $skorKata;
-
-        if ($totalSkor >= 7) return 'kritis';
-        if ($totalSkor >= 5) return 'tinggi';
-        if ($totalSkor >= 3) return 'sedang';
-        return 'rendah';
     }
 }

@@ -13,8 +13,11 @@ class RiwayatController extends Controller
         $query = RiwayatStatus::with(['laporan', 'user']);
 
         if ($user->role === 'masyarakat') {
-            $query->whereHas('laporan', function ($q) use ($user) {
-                $q->where('user_id', $user->id);
+            $query->where(function ($q) use ($user) {
+                $q->where('user_id', $user->id)
+                  ->orWhereHas('laporan', function ($lq) use ($user) {
+                      $lq->where('user_id', $user->id);
+                  });
             });
         } elseif ($user->role === 'relawan') {
             $query->whereHas('laporan.penugasan', function ($q) use ($user) {

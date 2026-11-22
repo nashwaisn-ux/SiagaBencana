@@ -24,6 +24,22 @@ interface ApiService {
     @GET("me")
     suspend fun getMe(): Response<ApiResponse<User>>
 
+    @POST("profile/update")
+    suspend fun updateProfile(
+        @Body request: UpdateProfileRequest
+    ): Response<ApiResponse<User>>
+
+    @Multipart
+    @POST("profile/photo")
+    suspend fun uploadProfilePhoto(
+        @Part foto: MultipartBody.Part
+    ): Response<ApiResponse<User>>
+
+    @POST("reset-password")
+    suspend fun resetPassword(
+        @Body request: ResetPasswordRequest
+    ): Response<ApiResponse<Any>>
+
     @GET("kategori")
     suspend fun getKategori(): Response<ApiResponse<List<Kategori>>>
 
@@ -56,7 +72,8 @@ interface ApiService {
         @Part("latitude") latitude: RequestBody,
         @Part("longitude") longitude: RequestBody,
         @Part("jumlah_terdampak") jumlahTerdampak: RequestBody,
-        @Part foto: MultipartBody.Part? = null
+        @Part foto: MultipartBody.Part? = null,
+        @Part("sos") sos: RequestBody? = null
     ): Response<ApiResponse<Laporan>>
 
     @Multipart

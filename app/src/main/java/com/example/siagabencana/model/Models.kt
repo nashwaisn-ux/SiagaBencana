@@ -24,7 +24,9 @@ data class User(
     val nama: String,
     val email: String? = null,
     val role: String? = null,
-    val no_hp: String? = null
+    val no_hp: String? = null,
+    val alamat: String? = null,
+    val foto_url: String? = null
 )
 
 data class AuthData(
@@ -34,7 +36,8 @@ data class AuthData(
 
 data class LoginRequest(
     val email: String,
-    val password: String
+    val password: String,
+    val role: String? = null
 )
 
 data class RegisterRequest(
@@ -43,6 +46,20 @@ data class RegisterRequest(
     val password: String,
     val password_confirmation: String,
     val no_hp: String? = null
+)
+
+data class UpdateProfileRequest(
+    val nama: String,
+    val email: String? = null,
+    val no_hp: String? = null,
+    val alamat: String? = null
+)
+
+data class ResetPasswordRequest(
+    val email: String,
+    val password: String,
+    val password_confirmation: String? = null,
+    val otp: String? = null
 )
 
 data class Kategori(
@@ -62,22 +79,11 @@ data class Relawan(
     val tugas_aktif: Int = 0
 )
 
-data class Laporan(
+data class LaporanSummary(
     val id: Int,
     val judul: String,
-    val deskripsi: String,
-    val foto_url: String? = null,
-    val latitude: Double,
-    val longitude: Double,
-    val jumlah_terdampak: Int = 0,
-    val urgensi: String,
-    val status: String,
-    val kategori: Kategori? = null,
-    val pelapor: UserSummary? = null,
-    val created_at: String? = null,
-    val updated_at: String? = null,
-    val penugasan: List<Penugasan>? = null,
-    val riwayat: List<RiwayatStatus>? = null
+    val urgensi: String? = null,
+    val status: String? = null
 )
 
 data class Penugasan(
@@ -89,13 +95,6 @@ data class Penugasan(
     val relawan: UserSummary? = null,
     val petugas: UserSummary? = null,
     val laporan: LaporanSummary? = null
-)
-
-data class LaporanSummary(
-    val id: Int,
-    val judul: String,
-    val urgensi: String? = null,
-    val status: String? = null
 )
 
 data class RiwayatStatus(
@@ -114,7 +113,8 @@ data class DashboardData(
     val per_urgensi: Map<String, Int>,
     val per_kategori: List<KategoriStat>,
     val laporan_terbaru: List<Laporan>,
-    val tugas_aktif: Int? = null
+    val tugas_aktif: Int? = null,
+    val relawan_total: Int? = null
 )
 
 data class KategoriStat(

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Laporan;
 use App\Models\KategoriBencana;
+use App\Models\User;
 use Illuminate\Http\Request;
 
 class DashboardController extends Controller
@@ -65,6 +66,8 @@ class DashboardController extends Controller
                 ->count();
         }
 
+        $relawanTotal = User::where('role', 'relawan')->count();
+
         return $this->successResponse([
             'total_laporan' => $totalLaporan,
             'per_status' => $perStatus,
@@ -72,6 +75,7 @@ class DashboardController extends Controller
             'per_kategori' => $perKategori,
             'laporan_terbaru' => $laporanTerbaru,
             'tugas_aktif' => $tugasAktif,
+            'relawan_total' => $relawanTotal,
         ], 'OK');
     }
 }

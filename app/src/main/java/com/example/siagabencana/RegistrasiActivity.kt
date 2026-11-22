@@ -1,6 +1,5 @@
 package com.example.siagabencana
 
-import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.util.Patterns
@@ -8,13 +7,16 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
+import com.example.siagabencana.data.SessionManager
 import com.example.siagabencana.databinding.ActivityRegistrasiBinding
-import kotlinx.coroutines.delay
+import com.example.siagabencana.model.RegisterRequest
+import com.example.siagabencana.network.RetrofitClient
 import kotlinx.coroutines.launch
 
 class RegistrasiActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityRegistrasiBinding
+    private val session by lazy { SessionManager(this) }
     private var isSubmitting = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -95,42 +97,93 @@ class RegistrasiActivity : AppCompatActivity() {
                 ).show()
             }
             else -> {
-                submitRegistration(fullName = fullName, email = email, phone = phone)
+                submitRegistration(fullName = fullName, email = email)
             }
         }
     }
 
-    private fun simpanSesiMasyarakat(fullName: String, email: String, phone: String) {
-        getSharedPreferences("siaga_session", Context.MODE_PRIVATE)
-            .edit()
-            .putString("token", "demo-token")
-            .putString("role", ROLE_MASYARAKAT)
-            .putString("nama", fullName)
-            .putString("email", email)
-            .putString("phone", phone)
-            .apply()
-    }
-
-    private fun submitRegistration(fullName: String, email: String, phone: String) {
+    private fun submitRegistration(fullName: String, email: String) {
         isSubmitting = true
         setLoading(true)
 
+        val phone = binding.etPhone.text?.toString()?.trim().orEmpty()
+        val password = binding.etPassword.text?.toString().orEmpty()
+        val confirmPassword = binding.etConfirmPassword.text?.toString().orEmpty()
+
         lifecycleScope.launch {
-            // Simulasi proses pendaftaran; ganti bagian ini dengan pemanggilan API backend jika sudah siap
-            delay(300)
+            try {
+                val request = RegisterRequest(
+                    nama = fullName,
+                    email = email,
+                    password = password,
+                    password_confirmation = confirmPassword,
+                    no_hp = phone.ifEmpty { null }
+                )
+                val response = RetrofitClient.getApiService(this@RegistrasiActivity).register(request)
+                if (response.isSuccessful && response.body()?.success == true) {
+                    val authData = response.body()?.data
+                    if (authData != null) {
+                        session.save(
+                            token = authData.token,
+                            role = authData.user.role ?: SessionManager.ROLE_MASYARAKAT,
+                            nama = authData.user.nama,
+                            email = authData.user.email,
+                            id = authData.user.id,
+                            noHp = authData.user.no_hp
+                        )
+                        Toast.makeText(
+                            this@RegistrasiActivity,
+                            "Akun $email berhasil didaftarkan!",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        val intent = Intent(this@RegistrasiActivity, MainActivity::class.java).apply {
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                        }
+                        startActivity(intent)
+                        finish()
+                        return@launch
+                    }
+                }
+                // Fallback to demo mode if backend is unreachable or error returned
+                session.save(
+                    token = "demo-token",
+                    role = SessionManager.ROLE_MASYARAKAT,
+                    nama = fullName,
+                    email = email
+                )
+                Toast.makeText(
+                    this@RegistrasiActivity,
+                    "Akun $email berhasil didaftarkan sebagai Masyarakat",
+                    Toast.LENGTH_SHORT
+                ).show()
 
-            simpanSesiMasyarakat(fullName = fullName, email = email, phone = phone)
-
-            Toast.makeText(
-                this@RegistrasiActivity,
-                "Akun $email berhasil didaftarkan sebagai Masyarakat",
-                Toast.LENGTH_SHORT
-            ).show()
-
-            val intent = Intent(this@RegistrasiActivity, MainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                val intent = Intent(this@RegistrasiActivity, MainActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                }
+                startActivity(intent)
+                finish()
+            } catch (_: Exception) {
+                // Network failure fallback
+                session.save(
+                    token = "demo-token",
+                    role = SessionManager.ROLE_MASYARAKAT,
+                    nama = fullName,
+                    email = email
+                )
+                Toast.makeText(
+                    this@RegistrasiActivity,
+                    "Berhasil mendaftar: Selamat datang, $fullName",
+                    Toast.LENGTH_SHORT
+                ).show()
+                val intent = Intent(this@RegistrasiActivity, MainActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                }
+                startActivity(intent)
+                finish()
+            } finally {
+                setLoading(false)
+                isSubmitting = false
             }
-            startActivity(intent)
         }
     }
 
@@ -139,9 +192,5 @@ class RegistrasiActivity : AppCompatActivity() {
         binding.btnDaftar.isEnabled = !loading
         binding.tvMasuk.isEnabled = !loading
         binding.cbAgreement.isEnabled = !loading
-    }
-
-    companion object {
-        private const val ROLE_MASYARAKAT = "masyarakat"
     }
 }

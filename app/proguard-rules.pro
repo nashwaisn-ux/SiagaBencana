@@ -7,7 +7,7 @@
 # Preserve data models for Gson serialization
 -keep class com.example.siagabencana.model.** { *; }
 -keepclassmembers class com.example.siagabencana.model.** { *; }
--keepattributes Signature
+-keepattributes Signature, InnerClasses, EnclosingMethod
 -keepattributes *Annotation*
 
 # Retrofit
@@ -15,6 +15,8 @@
     @retrofit2.http.* <methods>;
 }
 -dontwarn retrofit2.**
+-keep,allowobfuscation,allowshrinking class retrofit2.Response
+-keep,allowobfuscation,allowshrinking class kotlin.coroutines.Continuation
 
 # Gson
 -keepclassmembers class * implements com.google.gson.TypeAdapterFactory {

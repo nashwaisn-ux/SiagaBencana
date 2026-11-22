@@ -178,7 +178,7 @@
                     android:orientation="vertical"
                     android:padding="16dp">
 
-                    <TextView android:id="@+id/tvLabelRelawan" style="@style/SiagaCaption" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Relawan aktif" android:textStyle="bold" />
+                    <TextView android:id="@+id/tvLabelRelawan" style="@style/SiagaCaption" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Tugas aktif" android:textStyle="bold" />
 
                     <TextView
                         android:id="@+id/tvStatRelawan"

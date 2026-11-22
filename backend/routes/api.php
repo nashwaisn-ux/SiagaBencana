@@ -14,12 +14,15 @@ use App\Http\Controllers\PetaController;
 // Public routes
 Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:10,1');
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
+Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 Route::get('/kategori', [KategoriController::class, 'index']);
 
 // Protected routes (Sanctum)
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
+    Route::post('/profile/update', [AuthController::class, 'updateProfile']);
+    Route::post('/profile/photo', [AuthController::class, 'uploadPhoto']);
 
     // Laporan routes
     Route::get('/laporan', [LaporanController::class, 'index']);
