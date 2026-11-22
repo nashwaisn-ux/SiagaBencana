@@ -78,6 +78,12 @@
             android:exported="false"
             android:screenOrientation="portrait" />
 
+        <activity
+            android:name=".DetailProfilFragment"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
+
     </application>
 
 </manifest>

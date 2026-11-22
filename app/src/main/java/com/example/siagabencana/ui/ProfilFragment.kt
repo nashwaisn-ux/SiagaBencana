@@ -13,6 +13,7 @@ import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
+import com.example.siagabencana.DetailProfilActivity // Sesuaikan jika DetailProfil pakai Fragment/Activity berbeda
 import com.example.siagabencana.LoginActivity
 import com.example.siagabencana.LupaSandiActivity
 import com.example.siagabencana.R
@@ -49,12 +50,24 @@ class ProfilFragment : Fragment() {
         tvAvatar = view.findViewById(R.id.tvAvatar)
         imgAvatarProfil = view.findViewById(R.id.imgAvatarProfil)
 
+        val btnDetailProfil = view.findViewById<MaterialButton>(R.id.btnDetailProfil)
         val btnKeluar = view.findViewById<MaterialButton>(R.id.btnKeluar)
         val menuUbahData = view.findViewById<LinearLayout>(R.id.menuUbahData)
         val menuUbahSandi = view.findViewById<LinearLayout>(R.id.menuUbahSandi)
         val menuTentang = view.findViewById<LinearLayout>(R.id.menuTentang)
 
         updateProfileUI()
+
+        btnDetailProfil?.setOnClickListener {
+            // Jika menggunakan Activity (seperti UbahDataDiriActivity / TentangAplikasiActivity):
+            startActivity(Intent(requireContext(), DetailProfilActivity::class.java))
+
+            // Jika menggunakan FragmentManager (tanpa Navigation Component):
+            // parentFragmentManager.beginTransaction()
+            //     .replace(R.id.fragment_container, DetailProfilFragment())
+            //     .addToBackStack(null)
+            //     .commit()
+        }
 
         menuUbahData?.setOnClickListener {
             startActivity(Intent(requireContext(), UbahDataDiriActivity::class.java))
