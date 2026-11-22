@@ -32,6 +32,12 @@
         </activity>
 
         <activity
+            android:name=".Splash2Activity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.SiagaBencana" />
+
+        <activity
             android:name=".LoginActivity"
             android:exported="false"
             android:screenOrientation="portrait"
@@ -63,16 +69,12 @@
             android:exported="false"
             android:screenOrientation="portrait" />
 
+
+
         <activity
             android:name=".UbahDataDiriActivity"
             android:exported="false"
             android:screenOrientation="portrait" />
-
-        <activity
-            android:name=".UbahPasswordActivity"
-            android:exported="false"
-            android:screenOrientation="portrait"
-            android:windowSoftInputMode="adjustResize" />
 
         <activity
             android:name=".RegistrasiActivity"
