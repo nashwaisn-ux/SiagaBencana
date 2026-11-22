@@ -19,9 +19,9 @@
             android:background="@drawable/bg_header_navy"
             android:orientation="vertical"
             android:paddingStart="28dp"
-            android:paddingTop="40dp"
+            android:paddingTop="28dp"
             android:paddingEnd="28dp"
-            android:paddingBottom="56dp">
+            android:paddingBottom="44dp">
 
             <LinearLayout
                 android:layout_width="wrap_content"
@@ -58,7 +58,7 @@
                 android:id="@+id/tvHeaderTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="28dp"
+                android:layout_marginTop="20dp"
                 android:text="Selamat datang kembali"
                 android:textColor="@color/white"
                 android:textSize="28sp"
@@ -219,7 +219,17 @@
                         android:maxLines="1" />
                 </com.google.android.material.textfield.TextInputLayout>
 
-
+                <TextView
+                    android:id="@+id/tvLupaSandi"
+                    android:layout_width="wrap_content"
+                    android:layout_height="36dp"
+                    android:layout_gravity="end"
+                    android:background="?attr/selectableItemBackground"
+                    android:gravity="center_vertical"
+                    android:text="Lupa kata sandi?"
+                    android:textColor="@color/siaga_red"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
 
                 <com.google.android.material.progressindicator.LinearProgressIndicator
                     android:id="@+id/progressLogin"
@@ -244,7 +254,7 @@
             style="@style/SiagaBody"
             android:layout_width="match_parent"
             android:layout_height="48dp"
-            android:layout_marginTop="16dp"
+            android:layout_marginTop="8dp"
             android:gravity="center"
             android:text="Belum punya akun? Daftar" />
 
@@ -253,7 +263,7 @@
             style="@style/SiagaCaption"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_margin="20dp"
+            android:layout_margin="16dp"
             android:background="@drawable/bg_info_blue"
             android:lineSpacingExtra="2dp"
             android:padding="12dp"
