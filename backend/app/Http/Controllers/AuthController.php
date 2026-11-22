@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 
@@ -15,7 +14,7 @@ class AuthController extends Controller
         $validated = $request->validate([
             'nama' => 'required|string|max:100',
             'email' => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:8|confirmed',
+            'password' => 'required|string|min:6|confirmed',
             'no_hp' => 'nullable|string|max:20',
         ]);
 
@@ -42,11 +41,12 @@ class AuthController extends Controller
             'password' => 'required|string',
         ]);
 
-        if (!Auth::attempt($credentials)) {
+        $user = User::where('email', $credentials['email'])->first();
+
+        if (! $user || ! Hash::check($credentials['password'], $user->password)) {
             return $this->errorResponse('Email atau password salah', 401);
         }
 
-        $user = Auth::user();
         $token = $user->createToken('api-token')->plainTextToken;
 
         return $this->successResponse([
@@ -96,7 +96,7 @@ class AuthController extends Controller
     public function uploadPhoto(Request $request)
     {
         $request->validate([
-            'foto' => 'required|image|mimes:jpeg,png,jpg,webp|max:3072', // Batas < 3 MB (3072 KB)
+            'foto' => 'required|image|mimes:jpeg,png,jpg,webp|max:3072',
         ]);
 
         $user = $request->user();
@@ -114,22 +114,27 @@ class AuthController extends Controller
         return $this->successResponse($this->formatUser($user), 'Foto profil berhasil diunggah');
     }
 
-    public function resetPassword(Request $request)
+    public function changePassword(Request $request)
     {
         $validated = $request->validate([
-            'email' => 'required|email|exists:users,email',
-            'password' => 'required|string|min:6',
+            'current_password' => 'required|string',
+            'password' => 'required|string|min:6|confirmed|different:current_password',
         ]);
 
-        $user = User::where('email', $validated['email'])->first();
+        $user = $request->user();
 
-        if (!$user) {
-            return $this->errorResponse('Email tidak ditemukan', 404);
+        if (! Hash::check($validated['current_password'], $user->password)) {
+            return $this->errorResponse('Kata sandi lama salah', 422);
         }
 
         $user->password = Hash::make($validated['password']);
         $user->save();
 
-        return $this->successResponse(null, 'Kata sandi berhasil diperbarui dan tersimpan di database');
+        $currentId = $user->currentAccessToken()->id ?? null;
+        $user->tokens()
+            ->when($currentId, fn ($q) => $q->where('id', '!=', $currentId))
+            ->delete();
+
+        return $this->successResponse(null, 'Kata sandi berhasil diperbarui');
     }
 }

@@ -35,9 +35,9 @@ interface ApiService {
         @Part foto: MultipartBody.Part
     ): Response<ApiResponse<User>>
 
-    @POST("reset-password")
-    suspend fun resetPassword(
-        @Body request: ResetPasswordRequest
+    @POST("profile/password")
+    suspend fun changePassword(
+        @Body request: ChangePasswordRequest
     ): Response<ApiResponse<Any>>
 
     @GET("kategori")

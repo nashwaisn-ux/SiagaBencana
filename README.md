@@ -1,20 +1,29 @@
 # SIAGABENCANA
 Sistem Pelaporan dan Koordinasi Penanganan Bencana Lingkungan Berbasis Android
 
-## Arsitektur
-Android (Kotlin + XML + Retrofit) -> REST API (Laravel/Laragon) -> MySQL
+## Cara Menjalankan
 
-## Anggota
-| No | Nama | Peran |
-|----|------|-------|
-| 1 | Nana | Ketua, analisis, ERD, database |
-| 2 | Tahta | Backend A: auth, CRUD laporan |
-| 3 | Rasyid | Backend B: penugasan, status, dashboard |
-| 4 | Afri | Android UI/UX |
-| 5 | Iqbal | Android integrasi |
-| 6 | Lista | QA, dokumentasi, media |
+### BACKEND (Laravel)
+```bash
+cd backend
+composer install
+copy .env.example .env      # (atau cp .env.example .env)
+php artisan key:generate
+# (Buat database MySQL "siagabencana", user root tanpa password, atau sesuaikan DB_* di .env)
+php artisan migrate --seed
+php artisan storage:link
+php artisan serve --host=0.0.0.0 --port=8000
+```
 
-## Struktur
-- `backend/` : Laravel REST API
-- `android/` : aplikasi Android
-- `docs/` : ERD, kontrak API, laporan
+### ANDROID
+- Emulator Android Studio: `BASE_URL = http://10.0.2.2:8000/api/`
+- HP fisik (satu WiFi dengan komputer): `BASE_URL = http://IP_LAPTOP:8000/api/` dan izinkan port 8000 di Windows Firewall.
+- Atur `BASE_URL` di `gradle.properties` (root proyek), contoh:
+  `BASE_URL=http://10.0.2.2:8000/api/`
+  lalu Sync Gradle.
+
+### AKUN DEMO (dari seeder, password: `password`)
+- Petugas: `petugas@demo.test`
+- Relawan: `relawan@demo.test`
+- Masyarakat: `masyarakat@demo.test`
+- Admin Utama: `admin.petugas@siagabencana.id` / `password123`
