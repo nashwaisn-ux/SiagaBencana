@@ -10,7 +10,9 @@ import androidx.lifecycle.lifecycleScope
 import com.example.siagabencana.data.SessionManager
 import com.example.siagabencana.databinding.ActivityRegistrasiBinding
 import com.example.siagabencana.model.RegisterRequest
+import com.example.siagabencana.network.ApiResult
 import com.example.siagabencana.network.RetrofitClient
+import com.example.siagabencana.network.apiCall
 import kotlinx.coroutines.launch
 
 class RegistrasiActivity : AppCompatActivity() {
@@ -111,78 +113,56 @@ class RegistrasiActivity : AppCompatActivity() {
         val confirmPassword = binding.etConfirmPassword.text?.toString().orEmpty()
 
         lifecycleScope.launch {
-            try {
-                val request = RegisterRequest(
-                    nama = fullName,
-                    email = email,
-                    password = password,
-                    password_confirmation = confirmPassword,
-                    no_hp = phone.ifEmpty { null }
+            val res = apiCall {
+                RetrofitClient.getApiService(this@RegistrasiActivity).register(
+                    RegisterRequest(
+                        nama = fullName,
+                        email = email,
+                        password = password,
+                        password_confirmation = confirmPassword,
+                        no_hp = phone.ifEmpty { null }
+                    )
                 )
-                val response = RetrofitClient.getApiService(this@RegistrasiActivity).register(request)
-                if (response.isSuccessful && response.body()?.success == true) {
-                    val authData = response.body()?.data
-                    if (authData != null) {
-                        session.save(
-                            token = authData.token,
-                            role = authData.user.role ?: SessionManager.ROLE_MASYARAKAT,
-                            nama = authData.user.nama,
-                            email = authData.user.email,
-                            id = authData.user.id,
-                            noHp = authData.user.no_hp
-                        )
+            }
+
+            setLoading(false)
+            isSubmitting = false
+
+            when (res) {
+                is ApiResult.Success -> {
+                    val auth = res.data
+                    if (auth == null) {
                         Toast.makeText(
                             this@RegistrasiActivity,
-                            "Akun $email berhasil didaftarkan!",
-                            Toast.LENGTH_SHORT
+                            "Respons server tidak valid",
+                            Toast.LENGTH_LONG
                         ).show()
-                        val intent = Intent(this@RegistrasiActivity, MainActivity::class.java).apply {
-                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                        }
-                        startActivity(intent)
-                        finish()
                         return@launch
                     }
+                    session.save(
+                        token = auth.token,
+                        role = auth.user.role ?: SessionManager.ROLE_MASYARAKAT,
+                        nama = auth.user.nama,
+                        email = auth.user.email,
+                        id = auth.user.id,
+                        noHp = auth.user.no_hp,
+                        alamat = auth.user.alamat,
+                        fotoUrl = auth.user.foto_url
+                    )
+                    Toast.makeText(
+                        this@RegistrasiActivity,
+                        "Akun $email berhasil didaftarkan!",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    val intent = Intent(this@RegistrasiActivity, MainActivity::class.java).apply {
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                    }
+                    startActivity(intent)
+                    finish()
                 }
-                // Fallback to demo mode if backend is unreachable or error returned
-                session.save(
-                    token = "demo-token",
-                    role = SessionManager.ROLE_MASYARAKAT,
-                    nama = fullName,
-                    email = email
-                )
-                Toast.makeText(
-                    this@RegistrasiActivity,
-                    "Akun $email berhasil didaftarkan sebagai Masyarakat",
-                    Toast.LENGTH_SHORT
-                ).show()
-
-                val intent = Intent(this@RegistrasiActivity, MainActivity::class.java).apply {
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                is ApiResult.Failure -> {
+                    Toast.makeText(this@RegistrasiActivity, res.message, Toast.LENGTH_LONG).show()
                 }
-                startActivity(intent)
-                finish()
-            } catch (_: Exception) {
-                // Network failure fallback
-                session.save(
-                    token = "demo-token",
-                    role = SessionManager.ROLE_MASYARAKAT,
-                    nama = fullName,
-                    email = email
-                )
-                Toast.makeText(
-                    this@RegistrasiActivity,
-                    "Berhasil mendaftar: Selamat datang, $fullName",
-                    Toast.LENGTH_SHORT
-                ).show()
-                val intent = Intent(this@RegistrasiActivity, MainActivity::class.java).apply {
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                }
-                startActivity(intent)
-                finish()
-            } finally {
-                setLoading(false)
-                isSubmitting = false
             }
         }
     }

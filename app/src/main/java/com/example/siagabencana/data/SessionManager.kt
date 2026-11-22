@@ -77,25 +77,7 @@ class SessionManager(context: Context) {
         saveUser(id = id, nama = nama, email = email, role = role, noHp = noHp, alamat = alamat, fotoUrl = fotoUrl)
     }
 
-    fun saveDemoSession(selectedRole: String = ROLE_MASYARAKAT) {
-        val namaDemo = when (selectedRole) {
-            ROLE_PETUGAS -> "Petugas BPBD (Admin)"
-            ROLE_RELAWAN -> "Budi Relawan (Demo)"
-            else -> "Masyarakat (Demo)"
-        }
-        val emailDemo = when (selectedRole) {
-            ROLE_PETUGAS -> "petugas@demo.com"
-            ROLE_RELAWAN -> "relawan@demo.com"
-            else -> "masyarakat@demo.com"
-        }
-        save(
-            token = "demo-token-12345",
-            role = selectedRole,
-            nama = namaDemo,
-            email = emailDemo,
-            id = 999
-        )
-    }
+
 
     fun getUserId(): Int = prefs.getInt(KEY_USER_ID, -1)
     fun getUserName(): String = prefs.getString(KEY_USER_NAMA, "") ?: ""

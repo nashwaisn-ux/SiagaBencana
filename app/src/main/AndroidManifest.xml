@@ -32,6 +32,12 @@
         </activity>
 
         <activity
+            android:name=".Splash2Activity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.SiagaBencana" />
+
+        <activity
             android:name=".LoginActivity"
             android:exported="false"
             android:screenOrientation="portrait"
@@ -63,10 +69,7 @@
             android:exported="false"
             android:screenOrientation="portrait" />
 
-        <activity
-            android:name=".LupaSandiActivity"
-            android:exported="false"
-            android:screenOrientation="portrait" />
+
 
         <activity
             android:name=".UbahDataDiriActivity"

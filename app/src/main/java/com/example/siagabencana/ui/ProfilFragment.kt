@@ -14,10 +14,10 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
 import com.example.siagabencana.LoginActivity
-import com.example.siagabencana.LupaSandiActivity
 import com.example.siagabencana.R
 import com.example.siagabencana.TentangAplikasiActivity
 import com.example.siagabencana.UbahDataDiriActivity
+import com.example.siagabencana.UbahPasswordActivity
 import com.example.siagabencana.data.SessionManager
 import com.example.siagabencana.network.RetrofitClient
 import com.google.android.material.button.MaterialButton
@@ -61,7 +61,7 @@ class ProfilFragment : Fragment() {
         }
 
         menuUbahSandi?.setOnClickListener {
-            startActivity(Intent(requireContext(), LupaSandiActivity::class.java))
+            startActivity(Intent(requireContext(), UbahPasswordActivity::class.java))
         }
 
         menuTentang?.setOnClickListener {

@@ -55,11 +55,10 @@ data class UpdateProfileRequest(
     val alamat: String? = null
 )
 
-data class ResetPasswordRequest(
-    val email: String,
+data class ChangePasswordRequest(
+    val current_password: String,
     val password: String,
-    val password_confirmation: String? = null,
-    val otp: String? = null
+    val password_confirmation: String
 )
 
 data class Kategori(

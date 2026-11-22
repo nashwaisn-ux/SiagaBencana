@@ -17,7 +17,9 @@ import com.bumptech.glide.Glide
 import com.example.siagabencana.data.SessionManager
 import com.example.siagabencana.databinding.ActivityUbahDataDiriBinding
 import com.example.siagabencana.model.UpdateProfileRequest
+import com.example.siagabencana.network.ApiResult
 import com.example.siagabencana.network.RetrofitClient
+import com.example.siagabencana.network.apiCall
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -145,44 +147,51 @@ class UbahDataDiriActivity : AppCompatActivity() {
                     binding.btnSaveProfile.isEnabled = false
 
                     lifecycleScope.launch {
-                        try {
-                            val request = UpdateProfileRequest(
-                                nama = fullName,
-                                email = email.ifEmpty { null },
-                                no_hp = phone.ifEmpty { null },
-                                alamat = address.ifEmpty { null }
+                        val res = apiCall {
+                            RetrofitClient.getApiService(this@UbahDataDiriActivity).updateProfile(
+                                UpdateProfileRequest(
+                                    nama = fullName,
+                                    email = email.ifEmpty { null },
+                                    no_hp = phone.ifEmpty { null },
+                                    alamat = address.ifEmpty { null }
+                                )
                             )
-                            val resp = RetrofitClient.getApiService(this@UbahDataDiriActivity).updateProfile(request)
+                        }
 
-                            // Upload photo multipart if a new photo was cropped/selected
-                            selectedPhotoUri?.let { uri ->
-                                uploadPhotoMultipart(uri)
-                            }
-                        } catch (_: Exception) {
-                            // Offline fallback handled gracefully
-                        } finally {
-                            val photoPath = selectedPhotoUri?.toString() ?: session.fotoUrl
-                            session.save(
-                                token = session.token ?: "demo-token",
-                                role = session.role,
-                                nama = fullName,
-                                email = email.ifEmpty { session.email },
-                                noHp = phone.ifEmpty { session.noHp },
-                                alamat = address.ifEmpty { session.alamat },
-                                fotoUrl = photoPath
-                            )
-
-                            Toast.makeText(this@UbahDataDiriActivity, "Data diri & foto profil berhasil disimpan", Toast.LENGTH_SHORT).show()
-                            setResult(
-                                RESULT_OK,
-                                Intent().apply {
-                                    putExtra("updated_name", fullName)
-                                    putExtra("updated_email", email)
-                                    putExtra("updated_phone", phone)
-                                    putExtra("updated_address", address)
+                        when (res) {
+                            is ApiResult.Success -> {
+                                val updatedUser = res.data
+                                selectedPhotoUri?.let { uri ->
+                                    uploadPhotoMultipart(uri)
                                 }
-                            )
-                            finish()
+                                val photoPath = selectedPhotoUri?.toString() ?: session.fotoUrl
+                                session.save(
+                                    token = session.token ?: "",
+                                    role = updatedUser?.role ?: session.role,
+                                    nama = updatedUser?.nama ?: fullName,
+                                    email = updatedUser?.email ?: email.ifEmpty { session.email },
+                                    id = updatedUser?.id ?: session.getUserId(),
+                                    noHp = updatedUser?.no_hp ?: phone.ifEmpty { session.noHp },
+                                    alamat = updatedUser?.alamat ?: address.ifEmpty { session.alamat },
+                                    fotoUrl = updatedUser?.foto_url ?: photoPath
+                                )
+
+                                Toast.makeText(this@UbahDataDiriActivity, res.message, Toast.LENGTH_SHORT).show()
+                                setResult(
+                                    RESULT_OK,
+                                    Intent().apply {
+                                        putExtra("updated_name", fullName)
+                                        putExtra("updated_email", email)
+                                        putExtra("updated_phone", phone)
+                                        putExtra("updated_address", address)
+                                    }
+                                )
+                                finish()
+                            }
+                            is ApiResult.Failure -> {
+                                Toast.makeText(this@UbahDataDiriActivity, res.message, Toast.LENGTH_LONG).show()
+                                binding.btnSaveProfile.isEnabled = true
+                            }
                         }
                     }
                 }

@@ -43,7 +43,7 @@ object RetrofitClient {
 
             if (response.code == 401) {
                 val path = request.url.encodedPath
-                val isAuthEndpoint = path.endsWith("/login") || path.endsWith("/register") || path.endsWith("/reset-password")
+                val isAuthEndpoint = path.endsWith("/login") || path.endsWith("/register")
                 if (!isAuthEndpoint && sessionManager.isLoggedIn()) {
                     sessionManager.clearSession()
                     if (isRedirecting.compareAndSet(false, true)) {
