@@ -154,3 +154,30 @@ data class BulkDeleteRequest(
 data class UpdatePenugasanStatusRequest(
     val status_tugas: String
 )
+
+data class PesanItem(
+    val id: Int = 0,
+    val laporan_id: Int,
+    val isi: String,
+    val pengirim: PengirimPesan? = null,
+    val created_at: String? = null
+)
+
+data class PengirimPesan(
+    val id: Int,
+    val nama: String,
+    val role: String? = null
+)
+
+data class KirimPesanRequest(
+    val isi: String
+)
+
+data class TambahRelawanRequest(
+    val nama: String,
+    val email: String,
+    val no_hp: String,
+    val password: String,
+    val posko: String? = null,
+    val spesialisasi: String? = null
+)

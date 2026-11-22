@@ -7,6 +7,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.siagabencana.databinding.ItemChatRelawanBinding
 
 data class PesanRelawan(
+    val id: Int = 0,
     val pengirim: String,
     val isi: String,
     val waktu: String,

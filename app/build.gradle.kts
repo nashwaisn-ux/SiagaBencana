@@ -7,10 +7,6 @@ android {
     namespace = "com.example.siagabencana"
     compileSdk = 35
 
-    buildFeatures {
-        viewBinding = true
-    }
-
     defaultConfig {
         applicationId = "com.example.siagabencana"
         minSdk = 24
@@ -19,7 +15,8 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        buildConfigField("String", "BASE_URL", "\"http://192.168.137.1:8000/api/\"")
+        val defaultBaseUrl = (project.findProperty("BASE_URL") as String?) ?: "http://192.168.137.1:8000/api/"
+        buildConfigField("String", "BASE_URL", "\"$defaultBaseUrl\"")
         androidResources.localeFilters.addAll(listOf("id", "en"))
     }
 

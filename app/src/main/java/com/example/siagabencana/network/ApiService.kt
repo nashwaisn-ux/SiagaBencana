@@ -48,6 +48,11 @@ interface ApiService {
         @Query("search") search: String? = null
     ): Response<ApiResponse<List<Relawan>>>
 
+    @POST("relawan")
+    suspend fun tambahRelawan(
+        @Body request: TambahRelawanRequest
+    ): Response<ApiResponse<Relawan>>
+
     @GET("laporan")
     suspend fun getLaporan(
         @Query("search") search: String? = null,
@@ -104,7 +109,7 @@ interface ApiService {
     suspend fun tugaskanRelawan(
         @Path("id") id: Int,
         @Body request: TugaskanRequest
-    ): Response<ApiResponse<Penugasan>>
+    ): Response<ApiResponse<Laporan>>
 
     @PATCH("laporan/{id}/status")
     suspend fun updateStatusLaporan(
@@ -117,6 +122,18 @@ interface ApiService {
         @Path("id") id: Int,
         @Body request: UpdateUrgensiRequest
     ): Response<ApiResponse<Laporan>>
+
+    @GET("laporan/{id}/pesan")
+    suspend fun getPesan(
+        @Path("id") id: Int,
+        @Query("after_id") afterId: Int? = null
+    ): Response<ApiResponse<List<PesanItem>>>
+
+    @POST("laporan/{id}/pesan")
+    suspend fun kirimPesan(
+        @Path("id") id: Int,
+        @Body request: KirimPesanRequest
+    ): Response<ApiResponse<PesanItem>>
 
     @GET("penugasan")
     suspend fun getPenugasan(

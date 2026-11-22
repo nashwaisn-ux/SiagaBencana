@@ -1,7 +1,9 @@
 package com.example.siagabencana
 
+import android.Manifest
 import android.animation.ValueAnimator
 import android.annotation.SuppressLint
+import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.drawable.Drawable
 import android.location.Location
@@ -11,6 +13,7 @@ import android.view.MotionEvent
 import android.widget.ImageButton
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.DrawableCompat
@@ -23,15 +26,13 @@ import com.google.android.material.progressindicator.LinearProgressIndicator
 import kotlinx.coroutines.launch
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.toRequestBody
-import org.osmdroid.config.Configuration
-import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.tileprovider.tilesource.XYTileSource
+import org.osmdroid.util.BoundingBox
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.CopyrightOverlay
 import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.Polygon
-import java.io.File
 import java.io.IOException
 
 class PetaSiagaActivity : AppCompatActivity() {
@@ -52,21 +53,30 @@ class PetaSiagaActivity : AppCompatActivity() {
     private var currentCenterGeo = GeoPoint(0.5070677, 101.4477930)
     private var currentRadiusMeters = 3000.0 // Default 3 km
     private var currentCategoryFilter: String? = null
+    private var isRadiusFilterActive = false
 
     private var focusLat: Double = Double.NaN
     private var focusLng: Double = Double.NaN
     private var focusJudul: String? = null
 
+    private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        if (permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+            permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        ) {
+            val userLocation = fetchUserLocation()
+            if (userLocation != null && focusLat.isNaN()) {
+                currentCenterGeo = userLocation
+                isRadiusFilterActive = true
+                mapView.controller.animateTo(currentCenterGeo)
+            }
+        }
+        muatLaporan()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        Configuration.getInstance().apply {
-            load(applicationContext, getSharedPreferences("osmdroid", MODE_PRIVATE))
-            userAgentValue = "com.example.siagabencana/1.0 (Android OS; contact: dev@siagabencana.app)"
-            osmdroidBasePath = File(cacheDir, "osmdroid")
-            osmdroidTileCache = File(osmdroidBasePath, "tiles")
-        }
-
         setContentView(R.layout.activity_peta_siaga)
 
         mapView = findViewById(R.id.mapView)
@@ -107,9 +117,15 @@ class PetaSiagaActivity : AppCompatActivity() {
 
         if (!focusLat.isNaN() && !focusLng.isNaN()) {
             currentCenterGeo = GeoPoint(focusLat, focusLng)
+            isRadiusFilterActive = true
             mapView.controller.setZoom(16.0)
             mapView.controller.setCenter(currentCenterGeo)
         } else {
+            val userLocation = fetchUserLocation()
+            if (userLocation != null) {
+                currentCenterGeo = userLocation
+                isRadiusFilterActive = true
+            }
             mapView.controller.setZoom(14.0)
             mapView.controller.setCenter(currentCenterGeo)
         }
@@ -118,7 +134,23 @@ class PetaSiagaActivity : AppCompatActivity() {
         setupCategoryFilter()
         setupRadiusFilter()
 
-        muatLaporan()
+        mintaIzinLokasi()
+    }
+
+    private fun mintaIzinLokasi() {
+        val fineLocation = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+        val coarseLocation = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION)
+
+        if (fineLocation == PackageManager.PERMISSION_GRANTED || coarseLocation == PackageManager.PERMISSION_GRANTED) {
+            muatLaporan()
+        } else {
+            requestPermissionLauncher.launch(
+                arrayOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                )
+            )
+        }
     }
 
     @SuppressLint("MissingPermission")
@@ -163,6 +195,7 @@ class PetaSiagaActivity : AppCompatActivity() {
             }
 
             currentRadiusMeters = radiusMeters
+            isRadiusFilterActive = true
             mapView.controller.animateTo(currentCenterGeo, zoomLevel, 800L)
             filterAndDisplayPoints()
             Toast.makeText(this, "Zoom peta disesuaikan ke area radius $label", Toast.LENGTH_SHORT).show()
@@ -177,13 +210,24 @@ class PetaSiagaActivity : AppCompatActivity() {
                 if (resp.isSuccessful && data != null) {
                     allMapPoints = data
                     filterAndDisplayPoints()
+
+                    if (!isRadiusFilterActive && allMapPoints.isNotEmpty() && focusLat.isNaN()) {
+                        val points = ArrayList<GeoPoint>()
+                        allMapPoints.forEach { points.add(GeoPoint(it.latitude, it.longitude)) }
+                        if (points.isNotEmpty()) {
+                            val boundingBox = BoundingBox.fromGeoPoints(points)
+                            mapView.zoomToBoundingBox(boundingBox, true, 100)
+                        }
+                    }
                 } else {
-                    Toast.makeText(this@PetaSiagaActivity, "Gagal memuat peta", Toast.LENGTH_SHORT).show()
+                    tvRingkasan.text = "Gagal memuat data peta"
+                    Toast.makeText(this@PetaSiagaActivity, "Gagal memuat data peta", Toast.LENGTH_SHORT).show()
                 }
             } catch (e: IOException) {
+                tvRingkasan.text = "Tidak ada koneksi internet"
                 Toast.makeText(this@PetaSiagaActivity, "Tidak ada koneksi", Toast.LENGTH_SHORT).show()
             } catch (e: Exception) {
-                Toast.makeText(this@PetaSiagaActivity, "Terjadi kesalahan memuat data", Toast.LENGTH_SHORT).show()
+                tvRingkasan.text = "Terjadi kesalahan memuat data"
             }
         }
     }
@@ -191,25 +235,31 @@ class PetaSiagaActivity : AppCompatActivity() {
     private fun filterAndDisplayPoints() {
         mapView.overlays.removeAll { it is Marker || it is Polygon }
 
-        val radiusPolygon = Polygon(mapView).apply {
-            points = createCirclePoints(currentCenterGeo, currentRadiusMeters)
-            fillPaint.color = Color.parseColor("#1AD32F2F")
-            outlinePaint.color = Color.parseColor("#D32F2F")
-            outlinePaint.strokeWidth = 3f
+        if (isRadiusFilterActive) {
+            val radiusPolygon = Polygon(mapView).apply {
+                points = createCirclePoints(currentCenterGeo, currentRadiusMeters)
+                fillPaint.color = Color.parseColor("#1AD32F2F")
+                outlinePaint.color = Color.parseColor("#D32F2F")
+                outlinePaint.strokeWidth = 3f
+            }
+            mapView.overlays.add(0, radiusPolygon)
         }
-        mapView.overlays.add(0, radiusPolygon)
 
         val filteredPoints = allMapPoints.filter { p ->
             val kat = p.kategori.orEmpty()
             val matchesCategory = currentCategoryFilter.isNullOrEmpty() ||
                     kat.contains(currentCategoryFilter!!, ignoreCase = true)
 
-            val dist = FloatArray(1)
-            Location.distanceBetween(
-                currentCenterGeo.latitude, currentCenterGeo.longitude,
-                p.latitude, p.longitude, dist
-            )
-            val matchesRadius = dist[0] <= currentRadiusMeters
+            val matchesRadius = if (isRadiusFilterActive) {
+                val dist = FloatArray(1)
+                Location.distanceBetween(
+                    currentCenterGeo.latitude, currentCenterGeo.longitude,
+                    p.latitude, p.longitude, dist
+                )
+                dist[0] <= currentRadiusMeters
+            } else {
+                true
+            }
 
             matchesCategory && matchesRadius
         }
@@ -240,8 +290,14 @@ class PetaSiagaActivity : AppCompatActivity() {
             }
         }
 
-        val radiusLabelInKm = (currentRadiusMeters / 1000).toInt()
-        tvRingkasan.text = "${filteredPoints.size} laporan dalam radius $radiusLabelInKm km"
+        if (allMapPoints.isEmpty()) {
+            tvRingkasan.text = "Belum ada laporan bencana"
+        } else if (isRadiusFilterActive) {
+            val radiusLabelInKm = (currentRadiusMeters / 1000).toInt()
+            tvRingkasan.text = "${filteredPoints.size} laporan dalam radius $radiusLabelInKm km"
+        } else {
+            tvRingkasan.text = "${filteredPoints.size} laporan di peta"
+        }
 
         mapView.invalidate()
     }
@@ -305,13 +361,11 @@ class PetaSiagaActivity : AppCompatActivity() {
 
     private fun triggerSosEmergency() {
         val userLocation = fetchUserLocation()
-        val lat = userLocation?.latitude ?: if (focusLat.isNaN()) currentCenterGeo.latitude else null
-        val lon = userLocation?.longitude ?: if (focusLng.isNaN()) currentCenterGeo.longitude else null
+        val lat = userLocation?.latitude ?: currentCenterGeo.latitude
+        val lon = userLocation?.longitude ?: currentCenterGeo.longitude
 
-        if (lat == null || lon == null) {
-            Toast.makeText(this, "Lokasi GPS Anda belum terdeteksi. Nyalakan GPS HP Anda terlebih dahulu.", Toast.LENGTH_LONG).show()
-            progressSos.progress = 0
-            return
+        if (userLocation == null) {
+            Toast.makeText(this, "Lokasi GPS tidak terdeteksi, memakai titik peta", Toast.LENGTH_SHORT).show()
         }
 
         Toast.makeText(this, "🚨 MENGIRIM SINYAL SOS DARURAT...", Toast.LENGTH_LONG).show()
@@ -323,7 +377,7 @@ class PetaSiagaActivity : AppCompatActivity() {
                 val textType = "text/plain".toMediaTypeOrNull()
                 val judulPart = "Sinyal SOS Darurat!".toRequestBody(textType)
                 val deskPart = "Sinyal SOS Darurat dikirim pengguna dari Peta Siaga. Butuh bantuan evakuasi darurat!".toRequestBody(textType)
-                val katPart = "6".toRequestBody(textType)
+                val katPart = "1".toRequestBody(textType)
                 val latPart = lat.toString().toRequestBody(textType)
                 val lonPart = lon.toString().toRequestBody(textType)
                 val terdampakTest = "1".toRequestBody(textType)
@@ -361,6 +415,7 @@ class PetaSiagaActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         mapView.onResume()
+        muatLaporan()
     }
 
     override fun onPause() {

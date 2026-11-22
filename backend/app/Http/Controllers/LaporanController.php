@@ -5,14 +5,25 @@ namespace App\Http\Controllers;
 use App\Models\Laporan;
 use App\Models\Penugasan;
 use App\Models\RiwayatStatus;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 
 class LaporanController extends Controller
 {
     public function index(Request $request)
     {
+        $user = $request->user();
         $query = Laporan::with(['kategori', 'pelapor', 'penugasan.relawan']);
+
+        if ($user->role === 'masyarakat') {
+            $query->where('user_id', $user->id);
+        } elseif ($user->role === 'relawan') {
+            $query->whereHas('penugasan', function ($q) use ($user) {
+                $q->where('relawan_id', $user->id);
+            });
+        }
 
         if ($request->has('search') && !empty($request->input('search'))) {
             $search = $request->input('search');
@@ -62,10 +73,11 @@ class LaporanController extends Controller
         }
 
         $user = $request->user();
-        if ($user->role === 'masyarakat') {
-            if ($laporan->user_id !== $user->id) {
-                // Masyarakat tetap dapat membaca detail jika diperlukan untuk pantauan
-            }
+        if ($user->role === 'masyarakat' && $laporan->user_id !== $user->id) {
+            return $this->errorResponse('Akses ditolak', 403);
+        }
+        if ($user->role === 'relawan' && !$laporan->penugasan()->where('relawan_id', $user->id)->exists()) {
+            return $this->errorResponse('Akses ditolak', 403);
         }
 
         return $this->successResponse($this->formatLaporanDetail($laporan), 'OK');
@@ -211,17 +223,47 @@ class LaporanController extends Controller
             }
         }
 
-        RiwayatStatus::create([
-            'laporan_id' => $laporan->id,
-            'user_id' => $user->id,
-            'status_lama' => $laporan->status,
-            'status_baru' => 'dihapus',
-            'keterangan' => 'Laporan dihapus oleh ' . ($user->nama ?? 'pengguna'),
-        ]);
-
         $laporan->delete();
 
         return $this->successResponse(null, 'Laporan berhasil dihapus');
+    }
+
+    public function bulkDelete(Request $request)
+    {
+        $user = $request->user();
+
+        if ($user->role === 'relawan') {
+            return $this->errorResponse('Akses ditolak', 403);
+        }
+
+        $validated = $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'integer',
+        ]);
+
+        $query = Laporan::whereIn('id', $validated['ids']);
+
+        if ($user->role === 'masyarakat') {
+            $query->where('user_id', $user->id)->where('status', 'baru');
+        }
+
+        $deleted = 0;
+        foreach ($query->get() as $laporan) {
+            if ($laporan->foto) {
+                $decoded = json_decode($laporan->foto, true);
+                if (is_array($decoded)) {
+                    foreach ($decoded as $f) {
+                        Storage::disk('public')->delete($f);
+                    }
+                } else {
+                    Storage::disk('public')->delete($laporan->foto);
+                }
+            }
+            $laporan->delete();
+            $deleted++;
+        }
+
+        return $this->successResponse(['deleted' => $deleted], "{$deleted} laporan berhasil dihapus");
     }
 
     public function updateStatus(Request $request, $id)
@@ -270,6 +312,11 @@ class LaporanController extends Controller
         return $this->successResponse($this->formatLaporanDetail($laporan), 'Status laporan berhasil diubah');
     }
 
+    public function tugaskan(Request $request, $id)
+    {
+        return $this->tugaskanRelawan($request, $id);
+    }
+
     public function tugaskanRelawan(Request $request, $id)
     {
         $user = $request->user();
@@ -282,20 +329,27 @@ class LaporanController extends Controller
             return $this->errorResponse('Laporan tidak ditemukan', 404);
         }
 
+        if ($laporan->status === 'selesai') {
+            return $this->errorResponse('Laporan sudah selesai, tidak dapat ditugaskan', 422);
+        }
+
         $validated = $request->validate([
-            'relawan_id' => 'required|exists:users,id',
+            'relawan_id' => ['required', Rule::exists('users', 'id')->where('role', 'relawan')],
             'catatan' => 'nullable|string',
         ]);
 
-        $existing = Penugasan::where('laporan_id', $laporan->id)
+        $sudahAktif = Penugasan::where('laporan_id', $laporan->id)
             ->where('relawan_id', $validated['relawan_id'])
-            ->first();
+            ->whereIn('status_tugas', ['ditugaskan', 'diterima'])
+            ->exists();
 
-        if ($existing) {
+        if ($sudahAktif) {
             return $this->errorResponse('Relawan sudah ditugaskan pada laporan ini', 400);
         }
 
-        $penugasan = Penugasan::create([
+        $relawan = User::find($validated['relawan_id']);
+
+        Penugasan::create([
             'laporan_id' => $laporan->id,
             'petugas_id' => $user->id,
             'relawan_id' => $validated['relawan_id'],
@@ -303,7 +357,8 @@ class LaporanController extends Controller
             'status_tugas' => 'ditugaskan',
         ]);
 
-        if ($laporan->status === 'baru') {
+        $statusLama = $laporan->status;
+        if ($statusLama === 'baru') {
             $laporan->status = 'diverifikasi';
             $laporan->save();
         }
@@ -311,13 +366,49 @@ class LaporanController extends Controller
         RiwayatStatus::create([
             'laporan_id' => $laporan->id,
             'user_id' => $user->id,
-            'status_lama' => $laporan->status,
-            'status_baru' => 'diverifikasi',
-            'keterangan' => 'Relawan ditugaskan untuk penanganan lapangan',
+            'status_lama' => $statusLama,
+            'status_baru' => $laporan->status,
+            'keterangan' => 'Relawan ' . ($relawan->nama ?? '') . ' ditugaskan untuk penanganan lapangan',
         ]);
 
         $laporan->load(['kategori', 'pelapor', 'penugasan.relawan', 'penugasan.petugas', 'riwayat.user']);
 
         return $this->successResponse($this->formatLaporanDetail($laporan), 'Relawan berhasil ditugaskan');
+    }
+
+    public function updateUrgensi(Request $request, $id)
+    {
+        $user = $request->user();
+        if ($user->role !== 'petugas') {
+            return $this->errorResponse('Hanya petugas yang dapat mengubah urgensi laporan', 403);
+        }
+
+        $laporan = Laporan::find($id);
+        if (!$laporan) {
+            return $this->errorResponse('Laporan tidak ditemukan', 404);
+        }
+
+        $validated = $request->validate([
+            'urgensi' => 'required|in:rendah,sedang,tinggi,kritis',
+            'keterangan' => 'nullable|string|max:255',
+        ]);
+
+        $urgensiLama = $laporan->urgensi;
+        $urgensiBaru = strtolower($validated['urgensi']);
+
+        $laporan->urgensi = $urgensiBaru;
+        $laporan->save();
+
+        RiwayatStatus::create([
+            'laporan_id' => $laporan->id,
+            'user_id' => $user->id,
+            'status_lama' => $laporan->status,
+            'status_baru' => $laporan->status,
+            'keterangan' => "Urgensi diubah dari {$urgensiLama} ke {$urgensiBaru}. " . ($validated['keterangan'] ?? ''),
+        ]);
+
+        $laporan->load(['kategori', 'pelapor', 'penugasan.relawan', 'penugasan.petugas', 'riwayat.user']);
+
+        return $this->successResponse($this->formatLaporanDetail($laporan), 'Urgensi laporan berhasil diubah');
     }
 }

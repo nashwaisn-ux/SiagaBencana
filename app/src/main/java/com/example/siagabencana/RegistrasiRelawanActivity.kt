@@ -1,17 +1,21 @@
 package com.example.siagabencana
 
-import android.content.Context
 import android.os.Bundle
 import android.util.Patterns
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
+import com.example.siagabencana.data.SessionManager
 import com.example.siagabencana.databinding.ActivityRegistrasiRelawanBinding
+import com.example.siagabencana.model.TambahRelawanRequest
+import com.example.siagabencana.network.RetrofitClient
 import com.example.siagabencana.ui.toast
-import java.util.Locale
+import kotlinx.coroutines.launch
 
 class RegistrasiRelawanActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityRegistrasiRelawanBinding
+    private val session by lazy { SessionManager(this) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -23,17 +27,8 @@ class RegistrasiRelawanActivity : AppCompatActivity() {
         setupActions()
     }
 
-    private fun bacaRoleAktif(): String {
-        val prefs = getSharedPreferences("siaga_session", Context.MODE_PRIVATE)
-        val rawRole = prefs.getString("role", "")
-            ?: prefs.getString("user_role", "")
-            ?: ""
-        return rawRole.trim().lowercase(Locale.ROOT)
-    }
-
     private fun isPetugas(): Boolean {
-        val role = bacaRoleAktif()
-        return role == ROLE_PETUGAS || role == "role_petugas"
+        return session.role == SessionManager.ROLE_PETUGAS
     }
 
     private fun setupToolbar() {
@@ -134,21 +129,44 @@ class RegistrasiRelawanActivity : AppCompatActivity() {
 
     private fun simpanDataRelawan() {
         val nama = binding.etNamaRelawan.text?.toString()?.trim().orEmpty()
+        val email = binding.etEmailRelawan.text?.toString()?.trim().orEmpty()
+        val noHp = binding.etNoHpRelawan.text?.toString()?.trim().orEmpty()
+        val password = binding.etPasswordRelawan.text?.toString().orEmpty()
         val posko = binding.etPoskoRelawan.text?.toString()?.trim().orEmpty()
         val spesialisasi = binding.etSpesialisasiRelawan.text?.toString()?.trim().orEmpty()
-        val siapBertugas = binding.switchStatusAktifRelawan.isChecked
 
-        // TODO: Hubungkan ke endpoint API registrasi relawan (mis. POST /api/relawan/register)
-        val statusLabel = if (siapBertugas) "Siap Bertugas" else "Nonaktif"
-        Toast.makeText(
-            this,
-            "Relawan \"$nama\" ($spesialisasi • $posko) terdaftar [$statusLabel]",
-            Toast.LENGTH_LONG
-        ).show()
-        finish()
-    }
+        binding.btnSimpanRelawan.isEnabled = false
 
-    companion object {
-        private const val ROLE_PETUGAS = "petugas"
+        lifecycleScope.launch {
+            try {
+                val api = RetrofitClient.getApiService(this@RegistrasiRelawanActivity)
+                val response = api.tambahRelawan(
+                    TambahRelawanRequest(
+                        nama = nama,
+                        email = email,
+                        no_hp = noHp,
+                        password = password,
+                        posko = posko,
+                        spesialisasi = spesialisasi
+                    )
+                )
+
+                if (response.isSuccessful && response.body()?.success == true) {
+                    Toast.makeText(
+                        this@RegistrasiRelawanActivity,
+                        "Relawan \"$nama\" berhasil didaftarkan!",
+                        Toast.LENGTH_LONG
+                    ).show()
+                    finish()
+                } else {
+                    val msg = response.body()?.message ?: "Gagal mendaftarkan relawan"
+                    toast(msg)
+                }
+            } catch (e: Exception) {
+                toast("Gagal terhubung ke server")
+            } finally {
+                binding.btnSimpanRelawan.isEnabled = true
+            }
+        }
     }
 }

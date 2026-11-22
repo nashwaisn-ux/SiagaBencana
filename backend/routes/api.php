@@ -7,6 +7,7 @@ use App\Http\Controllers\KategoriController;
 use App\Http\Controllers\RelawanController;
 use App\Http\Controllers\LaporanController;
 use App\Http\Controllers\PenugasanController;
+use App\Http\Controllers\PesanController;
 use App\Http\Controllers\RiwayatController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PetaController;
@@ -37,8 +38,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('/laporan/{id}/status', [LaporanController::class, 'updateStatus']);
     Route::patch('/laporan/{id}/urgensi', [LaporanController::class, 'updateUrgensi']);
 
+    // Pesan (Chat per Laporan)
+    Route::get('/laporan/{id}/pesan', [PesanController::class, 'index']);
+    Route::post('/laporan/{id}/pesan', [PesanController::class, 'store']);
+
     // Relawan
     Route::get('/relawan', [RelawanController::class, 'index']);
+    Route::post('/relawan', [RelawanController::class, 'store']);
 
     // Penugasan
     Route::get('/penugasan', [PenugasanController::class, 'index']);

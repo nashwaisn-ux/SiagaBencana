@@ -1,5 +1,6 @@
 package com.example.siagabencana.ui
 
+import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -11,10 +12,15 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.siagabencana.R
+import com.example.siagabencana.RegistrasiRelawanActivity
+import com.example.siagabencana.data.SessionManager
 import com.example.siagabencana.databinding.FragmentRelawanBinding
 import com.example.siagabencana.databinding.ItemRelawanBinding
+import com.example.siagabencana.model.Laporan
 import com.example.siagabencana.model.Relawan
+import com.example.siagabencana.model.TugaskanRequest
 import com.example.siagabencana.network.RetrofitClient
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -25,6 +31,7 @@ class RelawanFragment : Fragment() {
     private val binding get() = _binding!!
     private val relawanList = mutableListOf<Relawan>()
     private lateinit var adapter: RelawanAdapter
+    private val session by lazy { SessionManager(requireContext()) }
 
     private var currentSearch: String? = null
     private var currentStatusFilter: Int = 0 // 0: Semua, 1: Tersedia, 2: Bertugas
@@ -42,9 +49,18 @@ class RelawanFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        adapter = RelawanAdapter(relawanList)
+        val isPetugas = session.role == SessionManager.ROLE_PETUGAS
+
+        adapter = RelawanAdapter(relawanList, isPetugas) { relawan ->
+            dialogTugaskanKeLaporan(relawan)
+        }
         binding.rvRelawan.layoutManager = LinearLayoutManager(requireContext())
         binding.rvRelawan.adapter = adapter
+
+        binding.fabTambahRelawan.isVisible = isPetugas
+        binding.fabTambahRelawan.setOnClickListener {
+            startActivity(Intent(requireContext(), RegistrasiRelawanActivity::class.java))
+        }
 
         binding.swipeRefresh.setOnRefreshListener {
             loadRelawan()
@@ -89,7 +105,7 @@ class RelawanFragment : Fragment() {
                 binding.swipeRefresh.isRefreshing = false
 
                 if (resp.isSuccessful && resp.body()?.success == true) {
-                    val rawData = resp.body()?.data.orEmpty()
+                    val rawData: List<Relawan> = resp.body()?.data ?: emptyList()
                     val filteredData = when (currentStatusFilter) {
                         1 -> rawData.filter { it.tugas_aktif == 0 }
                         2 -> rawData.filter { it.tugas_aktif > 0 }
@@ -117,13 +133,64 @@ class RelawanFragment : Fragment() {
         }
     }
 
+    private fun dialogTugaskanKeLaporan(relawan: Relawan) {
+        viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                val resp = RetrofitClient.getApiService(requireContext())
+                    .getLaporan(status = "baru,diverifikasi,ditangani", perPage = 50)
+                if (resp.isSuccessful && resp.body()?.success == true) {
+                    val laporanList: List<Laporan> = resp.body()?.data?.items ?: emptyList()
+                    if (laporanList.isEmpty()) {
+                        requireContext().toast("Tidak ada laporan aktif untuk ditugaskan")
+                        return@launch
+                    }
+
+                    val titles = laporanList.map { "#${it.id} - ${it.judul ?: "Bencana"}" }.toTypedArray()
+                    MaterialAlertDialogBuilder(requireContext())
+                        .setTitle("Tugaskan ${relawan.nama} ke laporan:")
+                        .setItems(titles) { _, which ->
+                            val selectedLaporan = laporanList[which]
+                            submitPenugasan(selectedLaporan.id, relawan.id)
+                        }
+                        .setNegativeButton("Batal", null)
+                        .show()
+                } else {
+                    requireContext().toast("Gagal memuat laporan aktif")
+                }
+            } catch (_: Exception) {
+                requireContext().toast("Gagal terhubung ke server")
+            }
+        }
+    }
+
+    private fun submitPenugasan(laporanId: Int, relawanId: Int) {
+        viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                val req = TugaskanRequest(relawan_id = relawanId, catatan = "Penugasan lapangan dari Tab Relawan")
+                val resp = RetrofitClient.getApiService(requireContext()).tugaskanRelawan(laporanId, req)
+                if (resp.isSuccessful && resp.body()?.success == true) {
+                    requireContext().toast("Relawan berhasil ditugaskan")
+                    loadRelawan()
+                } else {
+                    val msg = resp.body()?.message ?: "Gagal menugaskan relawan"
+                    requireContext().toast(msg)
+                }
+            } catch (_: Exception) {
+                requireContext().toast("Gagal terhubung ke server")
+            }
+        }
+    }
+
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
     }
 
-    private class RelawanAdapter(private val list: List<Relawan>) :
-        RecyclerView.Adapter<RelawanAdapter.VH>() {
+    private class RelawanAdapter(
+        private val list: List<Relawan>,
+        private val isPetugas: Boolean,
+        private val onTugaskan: (Relawan) -> Unit
+    ) : RecyclerView.Adapter<RelawanAdapter.VH>() {
 
         class VH(val b: ItemRelawanBinding) : RecyclerView.ViewHolder(b.root)
 
@@ -153,13 +220,17 @@ class RelawanFragment : Fragment() {
                 holder.b.tvStatus.setBackgroundResource(R.drawable.bg_badge_high)
                 holder.b.rowTugas.isVisible = true
                 holder.b.tvLaporanTugas.text = "Sedang menangani ${r.tugas_aktif} laporan"
-                holder.b.tvGanti.isVisible = false
             } else {
                 holder.b.tvStatus.text = "Tersedia"
                 holder.b.tvStatus.setBackgroundResource(R.drawable.bg_badge_done)
                 holder.b.rowTugas.isVisible = false
             }
-            holder.b.btnTugaskan.isVisible = false
+
+            holder.b.tvGanti.isVisible = false
+            holder.b.btnTugaskan.isVisible = isPetugas
+            holder.b.btnTugaskan.setOnClickListener {
+                onTugaskan(r)
+            }
         }
     }
 }

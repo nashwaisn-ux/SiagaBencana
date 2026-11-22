@@ -1,7 +1,6 @@
 package com.example.siagabencana
 
 import android.content.Intent
-import android.graphics.Color
 import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
@@ -107,6 +106,43 @@ class DetailLaporanActivity : AppCompatActivity() {
             startActivity(intent)
         }
 
+        // Listener Tombol Hubungi Chat
+        val tvHubungi = findViewById<View>(R.id.tvHubungi)
+        if (role == SessionManager.ROLE_MASYARAKAT) {
+            tvHubungi?.isVisible = false
+        } else {
+            tvHubungi?.isVisible = true
+            tvHubungi?.setOnClickListener {
+                val latest = l.penugasan?.lastOrNull()
+                val myId = session.getUserId()
+                val lawanNama: String?
+                val lawanStatus: String?
+                when (role) {
+                    SessionManager.ROLE_PETUGAS -> {
+                        lawanNama = latest?.relawan?.nama
+                        lawanStatus = latest?.status_tugas?.let { "Status tugas: $it" }
+                    }
+                    SessionManager.ROLE_RELAWAN -> {
+                        val mine = l.penugasan?.firstOrNull { it.relawan?.id == myId }
+                        lawanNama = mine?.petugas?.nama ?: "Petugas"
+                        lawanStatus = "Koordinator laporan"
+                    }
+                    else -> return@setOnClickListener
+                }
+                if (role == SessionManager.ROLE_PETUGAS && latest?.relawan == null) {
+                    toast("Belum ada relawan ditugaskan pada laporan ini")
+                    return@setOnClickListener
+                }
+                val intent = Intent(this, HubungiRelawanActivity::class.java).apply {
+                    putExtra("EXTRA_ID_LAPORAN", l.id)
+                    putExtra("EXTRA_ROLE", role)
+                    putExtra("EXTRA_NAMA_RELAWAN", lawanNama)
+                    putExtra("EXTRA_STATUS_RELAWAN", lawanStatus)
+                }
+                startActivity(intent)
+            }
+        }
+
         bindTimeline(l)
         bindRelawanCard(l)
         setupFoto(l)
@@ -151,10 +187,9 @@ class DetailLaporanActivity : AppCompatActivity() {
             }
         }
 
-        val latestRiwayat = l.riwayat?.lastOrNull { it.status_baru == l.status }
-        val ket = latestRiwayat?.keterangan
-        if (!ket.isNullOrBlank()) {
-            tvKeteranganProses?.text = ket
+        val ketList = l.riwayat?.mapNotNull { it.keterangan }?.filter { it.isNotBlank() }.orEmpty()
+        if (ketList.isNotEmpty()) {
+            tvKeteranganProses?.text = ketList.last()
             tvKeteranganProses?.isVisible = true
         } else {
             tvKeteranganProses?.isVisible = false
@@ -222,27 +257,17 @@ class DetailLaporanActivity : AppCompatActivity() {
 
     private fun setupAksi(l: Laporan) {
         val bar = findViewById<View>(R.id.bottomBar)
-        val btnTugaskan = findViewById<MaterialButton>(R.id.btnTugaskan)
-
         when (role) {
             SessionManager.ROLE_PETUGAS -> {
                 bar?.isVisible = true
-                btnTugaskan?.isVisible = l.status != "selesai"
-
                 findViewById<View>(R.id.btnStatus)?.setOnClickListener { pilihStatusPetugas(l) }
                 findViewById<View>(R.id.btnHapus)?.setOnClickListener { konfirmasiHapusPetugas() }
+
+                val btnTugaskan = findViewById<MaterialButton>(R.id.btnTugaskan)
                 btnTugaskan?.setOnClickListener { tugaskanRelawanDialog() }
             }
             SessionManager.ROLE_RELAWAN -> {
-                bar?.isVisible = l.status != "selesai"
-                findViewById<View>(R.id.btnPeta)?.setOnClickListener {
-                    val intent = Intent(this, PetaSiagaActivity::class.java).apply {
-                        putExtra(PetaSiagaActivity.EXTRA_LAT, l.latitude)
-                        putExtra(PetaSiagaActivity.EXTRA_LNG, l.longitude)
-                        putExtra(PetaSiagaActivity.EXTRA_JUDUL, l.judul ?: "Bencana")
-                    }
-                    startActivity(intent)
-                }
+                bar?.isVisible = true
                 val btnAmbil = findViewById<MaterialButton>(R.id.btnAmbil)
                 val myPenugasan = l.penugasan?.firstOrNull { it.relawan?.id == session.getUserId() }
 
@@ -263,7 +288,6 @@ class DetailLaporanActivity : AppCompatActivity() {
                 }
             }
             else -> {
-                // Masyarakat: hanya mengelola miliknya jika berstatus 'baru'
                 val isMyReport = l.pelapor?.id == session.getUserId()
                 val isBaru = l.status == "baru" || l.status == "BARU"
                 bar?.isVisible = isMyReport && isBaru
@@ -358,16 +382,15 @@ class DetailLaporanActivity : AppCompatActivity() {
             try {
                 val resp = RetrofitClient.getApiService(this@DetailLaporanActivity).getRelawan()
                 if (resp.isSuccessful && resp.body()?.success == true) {
-                    // Sort relawan by tugas_aktif ascending (terkecil di atas)
                     val relawans = resp.body()?.data.orEmpty().sortedBy { it.tugas_aktif }
                     if (relawans.isEmpty()) {
                         toast("Belum ada relawan terdaftar")
                         return@launch
                     }
 
-                    val names = relawans.map { "${it.nama} (tugas aktif: ${it.tugas_aktif})" }.toTypedArray()
+                    val names = relawans.map { "${it.nama} (Tugas aktif: ${it.tugas_aktif})" }.toTypedArray()
                     MaterialAlertDialogBuilder(this@DetailLaporanActivity)
-                        .setTitle("Tugaskan Relawan")
+                        .setTitle("Pilih relawan untuk ditugaskan")
                         .setItems(names) { _, which ->
                             val selectedRelawan = relawans[which]
                             submitPenugasan(selectedRelawan.id)
@@ -408,7 +431,8 @@ class DetailLaporanActivity : AppCompatActivity() {
                 val resp = RetrofitClient.getApiService(this@DetailLaporanActivity).updateStatusPenugasan(penugasanId, req)
                 if (resp.isSuccessful && resp.body()?.success == true) {
                     toast("Tugas diterima")
-                    updateStatusApi("ditangani")
+                    setResult(RESULT_OK)
+                    loadDetail()
                 } else {
                     toast(resp.body()?.message ?: "Gagal menerima tugas")
                 }
@@ -425,7 +449,8 @@ class DetailLaporanActivity : AppCompatActivity() {
                 val resp = RetrofitClient.getApiService(this@DetailLaporanActivity).updateStatusPenugasan(penugasanId, req)
                 if (resp.isSuccessful && resp.body()?.success == true) {
                     toast("Tugas selesai")
-                    updateStatusApi("selesai")
+                    setResult(RESULT_OK)
+                    loadDetail()
                 } else {
                     toast(resp.body()?.message ?: "Gagal menyelesaikan tugas")
                 }

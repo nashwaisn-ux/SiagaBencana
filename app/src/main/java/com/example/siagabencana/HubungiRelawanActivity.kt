@@ -1,14 +1,23 @@
 package com.example.siagabencana
 
-import android.content.Context
 import android.os.Bundle
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.example.siagabencana.data.SessionManager
 import com.example.siagabencana.databinding.ActivityHubungiRelawanBinding
+import com.example.siagabencana.model.KirimPesanRequest
+import com.example.siagabencana.model.PesanItem
+import com.example.siagabencana.network.RetrofitClient
+import com.example.siagabencana.ui.toast
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
-import java.util.Date
 import java.util.Locale
+import java.util.TimeZone
 
 class HubungiRelawanActivity : AppCompatActivity() {
 
@@ -16,10 +25,11 @@ class HubungiRelawanActivity : AppCompatActivity() {
     private lateinit var adapter: ChatRelawanAdapter
     private val daftarPesan = mutableListOf<PesanRelawan>()
 
+    private val session by lazy { SessionManager(this) }
     private var rolePengguna: String = ""
     private var idLaporan: Int = -1
-    private var namaLawanBicara: String = "Raka • Relawan"
-    private var labelPengirimSaya: String = "Saya"
+    private var namaLawanBicara: String = "Relawan"
+    private var lastPesanId: Int? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -27,36 +37,25 @@ class HubungiRelawanActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         ambilDataIntent()
+        if (idLaporan == -1) {
+            toast("Laporan tidak ditemukan")
+            finish()
+            return
+        }
+
         setupToolbar()
         setupRecyclerView()
         setupQuickReply()
         setupActions()
-        muatPesanAwal()
-    }
 
-    private fun bacaRoleAktif(): String {
-        val prefs = getSharedPreferences("siaga_session", Context.MODE_PRIVATE)
-        val rawRole = prefs.getString("role", "")
-            ?: prefs.getString("user_role", "")
-            ?: ""
-        return when (rawRole.trim().lowercase(Locale.ROOT)) {
-            "petugas", "role_petugas" -> ROLE_PETUGAS
-            "relawan", "role_relawan" -> ROLE_RELAWAN
-            else -> ""
-        }
+        mulaiPollingPesan()
     }
 
     private fun ambilDataIntent() {
         rolePengguna = intent.getStringExtra("EXTRA_ROLE")
             ?.takeIf { it.isNotBlank() }
-            ?: bacaRoleAktif()
+            ?: session.role
         idLaporan = intent.getIntExtra("EXTRA_ID_LAPORAN", -1)
-
-        labelPengirimSaya = when (rolePengguna.lowercase(Locale.ROOT)) {
-            ROLE_PETUGAS -> "Petugas"
-            ROLE_RELAWAN -> "Relawan"
-            else -> "Saya"
-        }
 
         val namaExtra = intent.getStringExtra("EXTRA_NAMA_RELAWAN")
         val statusExtra = intent.getStringExtra("EXTRA_STATUS_RELAWAN")
@@ -65,6 +64,8 @@ class HubungiRelawanActivity : AppCompatActivity() {
             namaLawanBicara = namaExtra
             binding.tvNamaRelawan.text = namaExtra
             binding.tvInisialRelawan.text = buatInisial(namaExtra)
+        } else {
+            binding.tvNamaRelawan.text = if (rolePengguna == SessionManager.ROLE_PETUGAS) "Relawan" else "Petugas"
         }
 
         if (!statusExtra.isNullOrBlank()) {
@@ -105,13 +106,13 @@ class HubungiRelawanActivity : AppCompatActivity() {
 
     private fun setupQuickReply() {
         binding.chipEvakuasi.setOnClickListener {
-            kirimPesan("Butuh evakuasi segera")
+            kirimPesanKeApi("Butuh evakuasi segera")
         }
         binding.chipLokasiAman.setOnClickListener {
-            kirimPesan("Posisi di titik aman")
+            kirimPesanKeApi("Posisi di titik aman")
         }
         binding.chipLogistik.setOnClickListener {
-            kirimPesan("Butuh air & P3K")
+            kirimPesanKeApi("Butuh air & P3K")
         }
     }
 
@@ -119,62 +120,124 @@ class HubungiRelawanActivity : AppCompatActivity() {
         binding.btnKirim.setOnClickListener {
             val teks = binding.etPesan.text?.toString()?.trim().orEmpty()
             if (teks.isEmpty()) {
-                Toast.makeText(this, "Silakan ketik pesan terlebih dahulu", Toast.LENGTH_SHORT).show()
+                toast("Silakan ketik pesan terlebih dahulu")
                 return@setOnClickListener
             }
-            kirimPesan(teks)
+            kirimPesanKeApi(teks)
             binding.etPesan.text?.clear()
         }
 
         binding.btnKirimLokasi.setOnClickListener {
             val infoLaporan = if (idLaporan != -1) " (Laporan #$idLaporan)" else ""
-            kirimPesan("Titik lokasi saya$infoLaporan: sertakan patokan jalan terdekat")
+            kirimPesanKeApi("Titik lokasi saya$infoLaporan: sertakan patokan jalan terdekat")
         }
     }
 
-    private fun muatPesanAwal() {
-        daftarPesan.clear()
-        daftarPesan.addAll(
-            listOf(
-                PesanRelawan(
-                    pengirim = namaLawanBicara,
-                    isi = "Halo, siap berkoordinasi untuk penanganan laporan ini. Bagaimana kondisi terkini di lapangan?",
-                    waktu = "15:45",
-                    isDariSaya = false
-                ),
-                PesanRelawan(
-                    pengirim = labelPengirimSaya,
-                    isi = "Air mulai naik di sekitar jalan utama, mohon pantau titik evakuasi.",
-                    waktu = "15:46",
-                    isDariSaya = true
-                )
-            )
-        )
-        adapter.notifyDataSetChanged()
-        gulirKePesanTerbaru()
+    private fun mulaiPollingPesan() {
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                while (true) {
+                    muatPesanDariApi()
+                    delay(4000)
+                }
+            }
+        }
     }
 
-    private fun kirimPesan(isiPesan: String) {
-        val waktuSekarang = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
-        adapter.tambahPesan(
-            PesanRelawan(
-                pengirim = labelPengirimSaya,
-                isi = isiPesan,
-                waktu = waktuSekarang,
-                isDariSaya = true
-            )
-        )
-        gulirKePesanTerbaru()
+    private suspend fun muatPesanDariApi() {
+        try {
+            val api = RetrofitClient.getApiService(this@HubungiRelawanActivity)
+            val response = api.getPesan(idLaporan, afterId = lastPesanId)
+            if (response.isSuccessful && response.body()?.success == true) {
+                val listBaru = response.body()?.data.orEmpty()
+                if (listBaru.isNotEmpty()) {
+                    val myId = session.getUserId()
+                    var adaBaru = false
+                    listBaru.forEach { item ->
+                        if (lastPesanId == null || item.id > (lastPesanId ?: 0)) {
+                            lastPesanId = item.id
+                        }
+                        val isSaya = item.pengirim?.id == myId
+                        val namaPengirim = if (isSaya) "Saya" else (item.pengirim?.nama ?: namaLawanBicara)
+                        val jamText = formatJam(item.created_at)
+
+                        daftarPesan.add(
+                            PesanRelawan(
+                                id = item.id,
+                                pengirim = namaPengirim,
+                                isi = item.isi,
+                                waktu = jamText,
+                                isDariSaya = isSaya
+                            )
+                        )
+                        adaBaru = true
+                    }
+                    if (adaBaru) {
+                        adapter.notifyDataSetChanged()
+                        gulirKePesanTerbaru()
+                    }
+                }
+            }
+        } catch (_: Exception) {
+            // Ignore network drop during background polling
+        }
+    }
+
+    private fun kirimPesanKeApi(isiPesan: String) {
+        binding.btnKirim.isEnabled = false
+        lifecycleScope.launch {
+            try {
+                val api = RetrofitClient.getApiService(this@HubungiRelawanActivity)
+                val response = api.kirimPesan(idLaporan, KirimPesanRequest(isiPesan))
+                if (response.isSuccessful && response.body()?.success == true) {
+                    val item = response.body()?.data
+                    if (item != null) {
+                        if (lastPesanId == null || item.id > (lastPesanId ?: 0)) {
+                            lastPesanId = item.id
+                        }
+                        val jamText = formatJam(item.created_at)
+                        adapter.tambahPesan(
+                            PesanRelawan(
+                                id = item.id,
+                                pengirim = "Saya",
+                                isi = item.isi,
+                                waktu = jamText,
+                                isDariSaya = true
+                            )
+                        )
+                        gulirKePesanTerbaru()
+                    }
+                } else {
+                    toast(response.body()?.message ?: "Gagal mengirim pesan")
+                }
+            } catch (e: Exception) {
+                toast("Gagal terhubung ke server")
+            } finally {
+                binding.btnKirim.isEnabled = true
+            }
+        }
+    }
+
+    private fun formatJam(isoDate: String?): String {
+        if (isoDate.isNullOrBlank()) return SimpleDateFormat("HH:mm", Locale.getDefault()).format(java.util.Date())
+        return try {
+            val parser = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US).apply {
+                timeZone = TimeZone.getTimeZone("UTC")
+            }
+            val date = parser.parse(isoDate)
+            if (date != null) {
+                SimpleDateFormat("HH:mm", Locale.getDefault()).format(date)
+            } else {
+                SimpleDateFormat("HH:mm", Locale.getDefault()).format(java.util.Date())
+            }
+        } catch (_: Exception) {
+            SimpleDateFormat("HH:mm", Locale.getDefault()).format(java.util.Date())
+        }
     }
 
     private fun gulirKePesanTerbaru() {
         if (daftarPesan.isNotEmpty()) {
             binding.rvChat.scrollToPosition(daftarPesan.size - 1)
         }
-    }
-
-    companion object {
-        private const val ROLE_PETUGAS = "petugas"
-        private const val ROLE_RELAWAN = "relawan"
     }
 }

@@ -77,16 +77,37 @@ class PenugasanController extends Controller
                 'status_tugas' => $newStatus,
             ]);
 
-            if ($penugasan->laporan_id) {
-                RiwayatStatus::create([
-                    'laporan_id' => $penugasan->laporan_id,
-                    'user_id' => $user->id,
-                    'status_lama' => $penugasan->laporan->status ?? null,
-                    'status_baru' => $penugasan->laporan->status ?? null,
-                    'keterangan' => "Status penugasan relawan (" . ($penugasan->relawan->nama ?? 'Relawan') . ") diubah dari {$oldStatus} menjadi {$newStatus}",
-                ]);
+            $laporan = $penugasan->laporan;
+            if ($laporan) {
+                $statusLaporanLama = $laporan->status;
+                $statusLaporanBaru = null;
+
+                if ($newStatus === 'diterima' && in_array($statusLaporanLama, ['baru', 'diverifikasi'])) {
+                    $statusLaporanBaru = 'ditangani';
+                } elseif ($newStatus === 'selesai') {
+                    $masihAktif = Penugasan::where('laporan_id', $laporan->id)
+                        ->whereIn('status_tugas', ['ditugaskan', 'diterima'])
+                        ->exists();
+                    if (!$masihAktif) {
+                        $statusLaporanBaru = 'selesai';
+                    }
+                }
+
+                if ($statusLaporanBaru && $statusLaporanBaru !== $statusLaporanLama) {
+                    $laporan->status = $statusLaporanBaru;
+                    $laporan->save();
+                    RiwayatStatus::create([
+                        'laporan_id'  => $laporan->id,
+                        'user_id'     => $user->id,
+                        'status_lama' => $statusLaporanLama,
+                        'status_baru' => $statusLaporanBaru,
+                        'keterangan'  => 'Relawan ' . ($user->nama ?? '') . ' mengubah tugas menjadi ' . $newStatus,
+                    ]);
+                }
             }
         }
+
+        $penugasan->load(['laporan', 'relawan', 'petugas']);
 
         return $this->successResponse([
             'id' => $penugasan->id,
