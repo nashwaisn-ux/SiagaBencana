@@ -7,6 +7,10 @@ android {
     namespace = "com.example.siagabencana"
     compileSdk = 35
 
+    buildFeatures {
+        viewBinding = true
+    }
+
     defaultConfig {
         applicationId = "com.example.siagabencana"
         minSdk = 24
